@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Phill Console | Admin Control</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&family=Noto+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght=300;400;500&family=Noto+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -13,24 +14,22 @@
 <script type="module" id="firebase-init">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"; // 🔑 보안 규칙 통과를 위한 인증 모듈 추가
+  import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-  // 발급받으신 최신 프로젝트 정보(appId 포함) 반영 완료
   const firebaseConfig = {
     apiKey: "AIzaSyADaeEPaUvLyU6J8eIPIy9luNeDhizxg-Q",
     authDomain: "phill-bar.firebaseapp.com",
     projectId: "phill-bar",
     storageBucket: "phill-bar.firebasestorage.app",
     messagingSenderId: "298800907820",
-    appId: "1:298800907820:web:98b360862cf2b0c6deb389", // 최신 앱 ID로 변경됨
+    appId: "1:298800907820:web:98b360862cf2b0c6deb389",
     measurementId: "G-BHQEZYV429"
   };
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
-  const auth = getAuth(app); // 인증 초기화
+  const auth = getAuth(app);
 
-  // 하단 리액트 스크립트에서 접근할 수 있도록 윈도우 전역 객체에 바인딩
   window.__firestore = {
     db, auth,
     collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy
@@ -67,6 +66,11 @@ function AdminApp() {
   const [members, setMembers] = useState('');
   const [bio, setBio] = useState('');
 
+  // 🛠️ 유튜브 연동 제어를 위한 상태 필드 추가
+  const [youtubeId, setYoutubeId] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+
   useEffect(() => {
     if (!firebaseReady) {
       window.addEventListener('firebase-ready', () => setFirebaseReady(true), { once: true });
@@ -100,19 +104,32 @@ function AdminApp() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!title && !images && !bio) {
-      alert('최소한 제목, 이미지, 또는 설명 중 하나는 입력해주세요.');
+    if (!title && !images && !bio && !youtubeId) {
+      alert('최소한 제목, 이미지, 유튜브 링크, 또는 설명 중 하나는 입력해주세요.');
       return;
     }
     const { db, collection, addDoc, doc, updateDoc, serverTimestamp } = window.__firestore;
     setLoading(true);
+
+    // 파이어베이스에 바인딩할 데이터 객체 구조 정제
+    const feedPayload = {
+      title,
+      artistName: artist,
+      coverImage: images,
+      members,
+      bio,
+      youtubeId: youtubeId.trim() || null,
+      startTime: startTime ? Number(startTime) : 0,
+      endTime: endTime ? Number(endTime) : 0
+    };
+
     try {
       if (isEdit) {
-        await updateDoc(doc(db, 'feeds', editId), { title, artistName: artist, coverImage: images, members, bio });
+        await updateDoc(doc(db, 'feeds', editId), feedPayload);
         alert('수정 완료되었습니다.');
       } else {
         await addDoc(collection(db, 'feeds'), {
-          title, artistName: artist, coverImage: images, members, bio,
+          ...feedPayload,
           comments: [],
           createdAt: serverTimestamp()
         });
@@ -127,9 +144,18 @@ function AdminApp() {
   };
 
   const startEdit = (f) => {
-    setIsEdit(true); setEditId(f.id); setTitle(f.title || '');
-    setArtist(f.artistName || ''); setImages(f.coverImage || '');
-    setMembers(f.members || ''); setBio(f.bio || '');
+    setIsEdit(true); 
+    setEditId(f.id); 
+    setTitle(f.title || '');
+    setArtist(f.artistName || ''); 
+    setImages(f.coverImage || '');
+    setMembers(f.members || ''); 
+    setBio(f.bio || '');
+    
+    // 수정 활성화 시 유튜브 관련 데이터 폼 로드
+    setYoutubeId(f.youtubeId || '');
+    setStartTime(f.startTime !== undefined ? f.startTime : '');
+    setEndTime(f.endTime !== undefined ? f.endTime : '');
   };
 
   const handleDelete = async (id) => {
@@ -146,8 +172,16 @@ function AdminApp() {
   };
 
   const clearForm = () => {
-    setIsEdit(false); setEditId(null); setTitle(''); setArtist('');
-    setImages(''); setMembers(''); setBio('');
+    setIsEdit(false); 
+    setEditId(null); 
+    setTitle(''); 
+    setArtist('');
+    setImages(''); 
+    setMembers(''); 
+    setBio('');
+    setYoutubeId('');
+    setStartTime('');
+    setEndTime('');
   };
 
   if (!firebaseReady) {
@@ -169,18 +203,57 @@ function AdminApp() {
   return (
     <div className="bg-jazzCard border border-zinc-800 rounded-2xl p-6 w-full h-full flex flex-col md:flex-row gap-6 shadow-2xl">
       {/* 에디터 폼 */}
-      <form onSubmit={handleSave} className="w-full md:w-1/2 flex flex-col justify-between space-y-3 overflow-y-auto pr-2">
+      <form onSubmit={handleSave} className="w-full md:w-1/2 flex flex-col justify-between space-y-3 overflow-y-auto pr-2 feed-scroll-container">
         <div className="space-y-3">
           <h2 className="text-xs text-jazzOrange font-medium tracking-widest uppercase">{isEdit ? "Modify Station" : "Publish New Feed"}</h2>
           <input type="text" placeholder="피드 제목 (공란 가능)" value={title} onChange={e=>setTitle(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-jazzRed" />
           <input type="text" placeholder="아티스트 소속 명칭" value={artist} onChange={e=>setArtist(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
           <input type="text" placeholder="멤버 세션 구성원 정보" value={members} onChange={e=>setMembers(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
+          
           <div className="bg-zinc-950 p-2 rounded border border-zinc-900 space-y-1.5">
             <label className="text-[10px] text-zinc-500 block">이미지 소스 주소 URL (다중 업로드는 엔터 줄바꿈 구분, 공란 시 텍스트 전용 전환)</label>
-            <textarea rows="3" placeholder={"https://example.com/image1.jpg\nhttps://example.com/image2.jpg"} value={images} onChange={e=>setImages(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-[11px] text-zinc-300 focus:outline-none"></textarea>
+            <textarea rows="2" placeholder={"https://example.com/image1.jpg\nhttps://example.com/image2.jpg"} value={images} onChange={e=>setImages(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-[11px] text-zinc-300 focus:outline-none"></textarea>
           </div>
-          <textarea rows="5" placeholder="설명 본문 텍스트란 입력 (공란 가능)" value={bio} onChange={e=>setBio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none"></textarea>
+
+          {/* 🛠️ 추가됨: 유튜브 비디오 제어 콘솔 섹션 */}
+          <div className="bg-zinc-950 p-3 rounded border border-zinc-900 space-y-2">
+            <label className="text-[10px] text-jazzOrange block font-medium tracking-wide"><i className="fa-brands fa-youtube mr-1"></i> YouTube 무한 루프 하이라이트 설정</label>
+            <input 
+              type="text" 
+              placeholder="유튜브 11자리 고유 ID만 입력 (예: WvNpPr4Mk8U)" 
+              value={youtubeId} 
+              onChange={e=>setYoutubeId(e.target.value)} 
+              className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" 
+            />
+            <div className="flex gap-2">
+              <div className="w-1/2 space-y-1">
+                <span className="text-[9px] text-zinc-500 pl-0.5">시작 시점 (초 단위 입력)</span>
+                <input 
+                  type="number" 
+                  placeholder="예: 30" 
+                  value={startTime} 
+                  onChange={e=>setStartTime(e.target.value)} 
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" 
+                  min="0"
+                />
+              </div>
+              <div className="w-1/2 space-y-1">
+                <span className="text-[9px] text-zinc-500 pl-0.5">종료 시점 (초 단위 입력)</span>
+                <input 
+                  type="number" 
+                  placeholder="예: 75" 
+                  value={endTime} 
+                  onChange={e=>setEndTime(e.target.value)} 
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" 
+                  min="0"
+                />
+              </div>
+            </div>
+          </div>
+
+          <textarea rows="4" placeholder="설명 본문 텍스트란 입력 (공란 가능)" value={bio} onChange={e=>setBio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none"></textarea>
         </div>
+        
         <div className="flex gap-2 pt-2">
           {isEdit && <button type="button" onClick={clearForm} className="w-1/4 bg-zinc-800 text-xs rounded text-zinc-400">취소</button>}
           <button type="submit" disabled={loading} className="flex-1 bg-jazzRed text-white text-xs py-2 rounded font-medium tracking-wider disabled:opacity-50">
@@ -195,19 +268,30 @@ function AdminApp() {
           <h2 className="text-xs text-zinc-500 tracking-widest uppercase">Current Board Feeds ({feeds.length})</h2>
           <button onClick={loadFeeds} disabled={loading} className="text-[10px] text-zinc-600 hover:text-jazzOrange transition">↻ 새로고침</button>
         </div>
-        <div className="flex-1 overflow-y-auto space-y-2">
+        <div className="flex-1 overflow-y-auto space-y-2 feed-scroll-container">
           {loading && feeds.length === 0 && <p className="text-xs text-zinc-600 text-center pt-10">불러오는 중...</p>}
           {feeds.map(f => {
             const imgs = f.coverImage ? f.coverImage.split('\n').filter(Boolean) : [];
+            const isVideoFeed = !!f.youtubeId;
+
             return (
               <div key={f.id} className="bg-zinc-950 p-3 rounded-lg flex items-center justify-between border border-zinc-900">
                 <div className="flex items-center space-x-3 overflow-hidden">
-                  {imgs.length > 0
-                    ? <img src={imgs[0]} className="w-9 h-9 object-cover rounded bg-zinc-900" />
-                    : <div className="w-9 h-9 bg-zinc-900 border border-zinc-800 rounded flex items-center justify-center text-[8px] text-zinc-600">TEXT</div>
-                  }
+                  {isVideoFeed ? (
+                    /* 유튜브 피드 전용 썸네일 표시 배지 */
+                    <div className="w-9 h-9 bg-red-950/40 border border-red-900/50 rounded flex flex-col items-center justify-center text-[7px] text-red-500 font-bold">
+                      <i className="fa-brands fa-youtube text-xs mb-0.5"></i>LIVE
+                    </div>
+                  ) : imgs.length > 0 ? (
+                    <img src={imgs[0]} className="w-9 h-9 object-cover rounded bg-zinc-900" />
+                  ) : (
+                    <div className="w-9 h-9 bg-zinc-900 border border-zinc-800 rounded flex items-center justify-center text-[8px] text-zinc-600">TEXT</div>
+                  )}
                   <div className="overflow-hidden">
-                    <h4 className="text-xs text-white font-medium truncate capitalize">{f.title || 'Untitled'}</h4>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs text-white font-medium truncate capitalize">{f.title || 'Untitled'}</h4>
+                      {isVideoFeed && <span className="text-[8px] bg-zinc-800 text-jazzOrange px-1 rounded font-mono">{f.startTime}s-{f.endTime}s</span>}
+                    </div>
                     <p className="text-[10px] text-zinc-500 truncate">{f.artistName || 'No Name'}</p>
                   </div>
                 </div>
