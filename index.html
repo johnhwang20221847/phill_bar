@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght=200;300;400;500;&family=Noto+Sans+KR:wght=300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -51,6 +51,18 @@ tailwind.config = {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-thumb { background: #FF2A1A; border-radius: 4px; }
 .feed-scroll-container { scrollbar-width: thin; scrollbar-color: #FF2A1A transparent; }
+
+/* 유튜브 iframe 완전히 숨기되 오디오는 재생되도록 */
+.yt-hidden-player {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
 </style>
 </head>
 <body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen overflow-hidden relative flex flex-col justify-between">
@@ -267,7 +279,7 @@ function App() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full bg-gradient-to-br from-jazzRed via-jazzOrange to-transparent opacity-20 blur-[140px] pointer-events-none z-0"></div>
       <audio ref={audioRef} src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" loop />
 
-      {/* 헤더 영역: Gemini 관련 오타/버그 텍스트 완벽히 제거됨 */}
+      {/* 헤더 */}
       <header className="w-full py-6 px-6 relative bg-jazzBlack/40 backdrop-blur-md z-20 border-b border-zinc-900/40 flex items-center justify-between">
         <div className="w-16"></div>
         <div className="text-center">
@@ -283,7 +295,7 @@ function App() {
         </div>
       </header>
 
-      {/* 메인 피드 보드 그리드 */}
+      {/* 메인 피드 보드 */}
       <main className="flex-1 flex items-center justify-center p-4 z-10 overflow-hidden">
         <div className="w-full max-w-[620px] aspect-square bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 p-4 shadow-2xl flex flex-col">
           <div className="flex-1 overflow-y-auto pr-1 feed-scroll-container grid grid-cols-3 gap-2.5 rounded-lg">
@@ -300,20 +312,26 @@ function App() {
 
               return (
                 <div key={feed.id} onClick={() => openFeed(feed)} className="group relative aspect-square bg-zinc-950 rounded-md overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 transition duration-300">
-                  {hasVideo ? (
-                    /* 유튜브 연동 피드일 때 메인 리스트 썸네일 대용 레이아웃 */
+                  {/* 피드 썸네일: 이미지 우선, 없으면 유튜브 표시, 그것도 없으면 텍스트 */}
+                  {hasImg ? (
+                    <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
+                  ) : hasVideo ? (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black p-3 text-center">
                       <i className="fa-brands fa-youtube text-2xl text-jazzRed mb-1 animate-pulse"></i>
                       <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-medium">YOUTUBE LOOP</span>
                     </div>
-                  ) : hasImg ? (
-                    <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
                   ) : (
                     <div className="w-full h-full p-3 flex items-center justify-center text-center bg-zinc-900 text-[11px] font-light text-zinc-400 leading-relaxed overflow-hidden">
                       <p className="line-clamp-4 text-ellipsis">{feed.bio}</p>
                     </div>
                   )}
-                  {imgList.length > 1 && !hasVideo && <div className="absolute top-2 right-2 text-[10px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
+                  {imgList.length > 1 && <div className="absolute top-2 right-2 text-[10px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
+                  {/* 유튜브+이미지 동시 존재 시 뮤직 아이콘 배지 */}
+                  {hasImg && hasVideo && (
+                    <div className="absolute top-2 left-2 text-[10px] bg-black/60 px-1.5 py-0.5 rounded text-jazzRed">
+                      <i className="fa-brands fa-youtube"></i>
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black/70 flex flex-col justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <h3 className="text-xs text-white truncate capitalize">{feed.title || 'Untitled'}</h3>
                     <p className="text-[10px] text-jazzOrange truncate font-light">{feed.artistName || 'Phill Session'}</p>
@@ -347,7 +365,7 @@ function App() {
         </div>
       </footer>
 
-      {/* 회원가입/로그인 모달 (생략없이 그대로 유지) */}
+      {/* 인증 모달 */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="relative w-full max-w-sm bg-jazzCard rounded-2xl border border-zinc-800 p-8 shadow-2xl text-center space-y-5">
@@ -405,109 +423,133 @@ function App() {
         </div>
       )}
 
-      {/* 🛠️ 완벽 수정됨: 유튜브 플레이어가 출력되는 피드 상세 팝업 모달 */}
-      {selectedFeed && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="relative w-full max-w-[850px] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl transition-all duration-300">
-            <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white z-10 text-sm"><i className="fa-times fa-solid"></i></button>
+      {/* ✅ 피드 상세 모달: 유튜브는 숨겨서 오디오만, 이미지 슬라이더는 정상 출력 */}
+      {selectedFeed && (() => {
+        const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
+        const hasImg = images.length > 0;
+        const hasVideo = !!selectedFeed.youtubeId;
 
-            {/* 미디어 랜더링 섹션 (유튜브 ID가 있으면 iframe 플레이어 노출, 없으면 일반 이미지 출력) */}
-            <div className="w-full md:w-1/2 aspect-square relative bg-black flex items-center justify-center">
-              {selectedFeed.youtubeId ? (
-                <iframe 
-                  className="w-full h-full object-cover"
-                  src={`https://www.youtube.com/embed/${selectedFeed.youtubeId}?autoplay=1&mute=0&loop=1&playlist=${selectedFeed.youtubeId}&start=${selectedFeed.startTime || 0}&end=${selectedFeed.endTime || 0}&controls=1&modestbranding=1`}
-                  title="YouTube video player" 
-                  frameBorder="0" 
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                  allowFullScreen
-                ></iframe>
-              ) : (
-                (() => {
-                  const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
-                  if (images.length === 0) return <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-xs text-zinc-600 font-mono">NO MEDIA</div>;
-                  return (
-                    <>
-                      <img src={images[currentImgIdx]} className="w-full h-full object-cover" />
-                      {images.length > 1 && (
-                        <>
-                          <button onClick={() => setCurrentImgIdx(p => p > 0 ? p - 1 : images.length - 1)} className="absolute left-3 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black"><i className="fa-solid fa-chevron-left"></i></button>
-                          <button onClick={() => setCurrentImgIdx(p => p < images.length - 1 ? p + 1 : 0)} className="absolute right-3 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black"><i className="fa-solid fa-chevron-right"></i></button>
-                          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                            {images.map((_, i) => <div key={i} className={`w-1 h-1 rounded-full ${i === currentImgIdx ? 'bg-jazzRed w-2 transition-all' : 'bg-zinc-600'}`}></div>)}
-                          </div>
-                        </>
-                      )}
-                    </>
-                  );
-                })()
-              )}
-            </div>
+        return (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div className="relative w-full max-w-[850px] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl transition-all duration-300">
+              <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white z-10 text-sm"><i className="fa-times fa-solid"></i></button>
 
-            {/* 우측 설명 및 방명록 댓글 본문 콘솔 */}
-            <div className="flex flex-col justify-between bg-jazzBlack p-6 w-full md:w-1/2 h-[450px] md:h-auto">
-              <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
-                <div>
-                  <h2 className="text-xl font-light text-white tracking-wide capitalize">{selectedFeed.title || 'Untitled'}</h2>
-                  <p className="text-xs text-zinc-500 font-light mt-0.5">
-                    {selectedFeed.artistName || 'Phill Session'} {selectedFeed.members ? `| ${selectedFeed.members}` : ''}
-                  </p>
-                </div>
-                <div className="flex-1 overflow-y-auto pr-1 feed-scroll-container text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2 border-t border-b border-zinc-900/60">
-                  {selectedFeed.bio || <span className="text-zinc-800/40 italic">작성된 피드 소개 내용이 없습니다.</span>}
-                </div>
-                
-                {/* 댓글 타임라인 리스트 */}
-                <div className="h-28 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
-                  {(selectedFeed.comments || []).map((c, i) => {
-                    const isMyComment = currentUsername && c.user === currentUsername;
-                    const isEditing = editingCommentIdx === i;
+              {/* 미디어 영역 */}
+              <div className="w-full md:w-1/2 aspect-square relative bg-black flex items-center justify-center overflow-hidden">
 
-                    return (
-                      <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30 flex flex-col justify-between gap-1 group">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
-                            {isEditing ? (
-                              <div className="flex gap-1.5 mt-1">
-                                <input 
-                                  type="text" 
-                                  value={editingCommentText} 
-                                  onChange={(e) => setEditingCommentText(e.target.value)} 
-                                  className="flex-grow bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-xs text-white focus:outline-none focus:border-jazzOrange"
-                                />
-                                <button onClick={() => handleUpdateComment(selectedFeed.id, i)} className="text-[10px] text-emerald-500 hover:text-emerald-400 px-1 font-medium">저장</button>
-                                <button onClick={() => { setEditingCommentIdx(null); setEditingCommentText(''); }} className="text-[10px] text-zinc-500 hover:text-zinc-400 px-1">취소</button>
+                {/* ✅ youtubeId가 있으면 항상 iframe을 숨김 처리하여 오디오만 재생 */}
+                {hasVideo && (
+                  <div className="yt-hidden-player">
+                    <iframe
+                      src={`https://www.youtube.com/embed/${selectedFeed.youtubeId}?autoplay=1&mute=0&loop=1&playlist=${selectedFeed.youtubeId}&start=${selectedFeed.startTime || 0}&end=${selectedFeed.endTime || 0}&controls=0&modestbranding=1`}
+                      title="YouTube audio player"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      width="1"
+                      height="1"
+                    ></iframe>
+                  </div>
+                )}
+
+                {/* ✅ 이미지가 있으면 슬라이더 출력 */}
+                {hasImg ? (
+                  <>
+                    <img src={images[currentImgIdx]} className="w-full h-full object-cover" />
+                    {images.length > 1 && (
+                      <>
+                        <button onClick={() => setCurrentImgIdx(p => p > 0 ? p - 1 : images.length - 1)} className="absolute left-3 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black z-10"><i className="fa-solid fa-chevron-left"></i></button>
+                        <button onClick={() => setCurrentImgIdx(p => p < images.length - 1 ? p + 1 : 0)} className="absolute right-3 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black z-10"><i className="fa-solid fa-chevron-right"></i></button>
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                          {images.map((_, i) => <div key={i} className={`w-1 h-1 rounded-full ${i === currentImgIdx ? 'bg-jazzRed w-2 transition-all' : 'bg-zinc-600'}`}></div>)}
+                        </div>
+                      </>
+                    )}
+                    {/* 유튜브 오디오 재생 중 배지 */}
+                    {hasVideo && (
+                      <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse inline-block"></span>
+                        <span className="text-[9px] text-zinc-300 tracking-widest uppercase font-light">MUSIC ON</span>
+                      </div>
+                    )}
+                  </>
+                ) : !hasVideo ? (
+                  /* 이미지도 유튜브도 없으면 NO MEDIA */
+                  <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-xs text-zinc-600 font-mono">NO MEDIA</div>
+                ) : (
+                  /* 유튜브만 있고 이미지 없는 경우: 시각적 플레이스홀더 */
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black gap-3">
+                    <i className="fa-brands fa-youtube text-4xl text-jazzRed animate-pulse"></i>
+                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-light">Audio Streaming...</span>
+                    <span className="w-2 h-2 rounded-full bg-jazzRed animate-ping mt-1"></span>
+                  </div>
+                )}
+              </div>
+
+              {/* 우측 설명 및 방명록 */}
+              <div className="flex flex-col justify-between bg-jazzBlack p-6 w-full md:w-1/2 h-[450px] md:h-auto">
+                <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
+                  <div>
+                    <h2 className="text-xl font-light text-white tracking-wide capitalize">{selectedFeed.title || 'Untitled'}</h2>
+                    <p className="text-xs text-zinc-500 font-light mt-0.5">
+                      {selectedFeed.artistName || 'Phill Session'} {selectedFeed.members ? `| ${selectedFeed.members}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto pr-1 feed-scroll-container text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2 border-t border-b border-zinc-900/60">
+                    {selectedFeed.bio || <span className="text-zinc-800/40 italic">작성된 피드 소개 내용이 없습니다.</span>}
+                  </div>
+                  
+                  {/* 댓글 리스트 */}
+                  <div className="h-28 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
+                    {(selectedFeed.comments || []).map((c, i) => {
+                      const isMyComment = currentUsername && c.user === currentUsername;
+                      const isEditing = editingCommentIdx === i;
+
+                      return (
+                        <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30 flex flex-col justify-between gap-1 group">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
+                              {isEditing ? (
+                                <div className="flex gap-1.5 mt-1">
+                                  <input 
+                                    type="text" 
+                                    value={editingCommentText} 
+                                    onChange={(e) => setEditingCommentText(e.target.value)} 
+                                    className="flex-grow bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-xs text-white focus:outline-none focus:border-jazzOrange"
+                                  />
+                                  <button onClick={() => handleUpdateComment(selectedFeed.id, i)} className="text-[10px] text-emerald-500 hover:text-emerald-400 px-1 font-medium">저장</button>
+                                  <button onClick={() => { setEditingCommentIdx(null); setEditingCommentText(''); }} className="text-[10px] text-zinc-500 hover:text-zinc-400 px-1">취소</button>
+                                </div>
+                              ) : (
+                                <span className="text-zinc-400 font-light break-all">{c.text}</span>
+                              )}
+                            </div>
+
+                            {isMyComment && !isEditing && (
+                              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 ml-2 transition-opacity duration-200">
+                                <button onClick={() => { setEditingCommentIdx(i); setEditingCommentText(c.text); }} className="text-zinc-500 hover:text-white transition" title="수정">
+                                  <i className="fa-solid fa-pen-to-square fa-xs"></i>
+                                </button>
+                                <button onClick={() => handleDeleteComment(selectedFeed.id, i)} className="text-zinc-500 hover:text-jazzRed transition" title="삭제">
+                                  <i className="fa-solid fa-trash fa-xs"></i>
+                                </button>
                               </div>
-                            ) : (
-                              <span className="text-zinc-400 font-light break-all">{c.text}</span>
                             )}
                           </div>
-
-                          {isMyComment && !isEditing && (
-                            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 ml-2 transition-opacity duration-200">
-                              <button onClick={() => { setEditingCommentIdx(i); setEditingCommentText(c.text); }} className="text-zinc-500 hover:text-white transition" title="수정">
-                                <i className="fa-solid fa-pen-to-square fa-xs"></i>
-                              </button>
-                              <button onClick={() => handleDeleteComment(selectedFeed.id, i)} className="text-zinc-500 hover:text-jazzRed transition" title="삭제">
-                                <i className="fa-solid fa-trash fa-xs"></i>
-                              </button>
-                            </div>
-                          )}
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
+                <form onSubmit={(e) => handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-4 border-t border-zinc-900/60 mt-2">
+                  <input type="text" placeholder={user ? "방명록의 문장을 남겨주세요..." : "로그인 후 작성이 가능합니다..."} value={commentInputs[selectedFeed.id] || ""} onChange={(e) => setCommentInputs({ ...commentInputs, [selectedFeed.id]: e.target.value })} className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" />
+                  <button type="submit" className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded hover:bg-red-700 font-medium">게시</button>
+                </form>
               </div>
-              <form onSubmit={(e) => handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-4 border-t border-zinc-900/60 mt-2">
-                <input type="text" placeholder={user ? "방명록의 문장을 남겨주세요..." : "로그인 후 작성이 가능합니다..."} value={commentInputs[selectedFeed.id] || ""} onChange={(e) => setCommentInputs({ ...commentInputs, [selectedFeed.id]: e.target.value })} className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" />
-                <button type="submit" className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded hover:bg-red-700 font-medium">게시</button>
-              </form>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
