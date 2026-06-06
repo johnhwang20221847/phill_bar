@@ -9,29 +9,35 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<!-- Firebase SDK -->
+
 <script type="module" id="firebase-init">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"; // 🔑 보안 규칙 통과를 위한 인증 모듈 추가
 
+  // 발급받으신 최신 프로젝트 정보(appId 포함) 반영 완료
   const firebaseConfig = {
     apiKey: "AIzaSyADaeEPaUvLyU6J8eIPIy9luNeDhizxg-Q",
     authDomain: "phill-bar.firebaseapp.com",
     projectId: "phill-bar",
     storageBucket: "phill-bar.firebasestorage.app",
     messagingSenderId: "298800907820",
-    appId: "1:298800907820:web:2bad355281976071deb389"
+    appId: "1:298800907820:web:98b360862cf2b0c6deb389", // 최신 앱 ID로 변경됨
+    measurementId: "G-BHQEZYV429"
   };
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app); // 인증 초기화
 
+  // 하단 리액트 스크립트에서 접근할 수 있도록 윈도우 전역 객체에 바인딩
   window.__firestore = {
-    db,
+    db, auth,
     collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy
   };
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
+
 <script>
 tailwind.config = {
   theme: { extend: { colors: { jazzBlack: '#060202', jazzCard: '#120A0A', jazzRed: '#FF2A1A', jazzOrange: '#FFA100' } } }
