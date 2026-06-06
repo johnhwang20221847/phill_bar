@@ -75,7 +75,6 @@ function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [idFindGuide, setIdFindGuide] = useState('');
 
-  // 🛠️ 댓글 수정 관련 상태 필드 추가
   const [editingCommentIdx, setEditingCommentIdx] = useState(null);
   const [editingCommentText, setEditingCommentText] = useState('');
 
@@ -126,7 +125,7 @@ function App() {
   const openFeed = (feed) => {
     setSelectedFeed(feed);
     setCurrentImgIdx(0);
-    setEditingCommentIdx(null); // 모달 열릴 때 초기화
+    setEditingCommentIdx(null);
     setEditingCommentText('');
   };
 
@@ -160,13 +159,12 @@ function App() {
     }
   };
 
-  // 🛠️ 기능 추가: 댓글 삭제 핸들러
   const handleDeleteComment = async (feedId, commentIdx) => {
     if (!window.confirm("이 방명록 댓글을 정말 삭제하시겠습니까?")) return;
     
     const { db, doc, updateDoc } = window.__firestore;
     const currentComments = [...(selectedFeed.comments || [])];
-    currentComments.splice(commentIdx, 1); // 지정 인덱스 요소 제거
+    currentComments.splice(commentIdx, 1);
 
     try {
       await updateDoc(doc(db, 'feeds', feedId), {
@@ -179,7 +177,6 @@ function App() {
     }
   };
 
-  // 🛠️ 기능 추가: 댓글 수정 완료 핸들러
   const handleUpdateComment = async (feedId, commentIdx) => {
     const text = editingCommentText.trim();
     if (!text) {
@@ -299,16 +296,46 @@ function App() {
             {!loading && feeds.map((feed) => {
               const imgList = feed.coverImage ? feed.coverImage.split('\n').filter(Boolean) : [];
               const hasImg = imgList.length > 0;
+              const hasYoutube = !!feed.youtubeId;
+
+              // 유튜브 반복 소스 빌드 (리스트 아이템 전용: 자동재생, 음소거, 루프제어)
+              const embedGridUrl = hasYoutube 
+                ? `https://www.youtube.com/embed/${feed.youtubeId}?autoplay=1&mute=1&loop=1&playlist=${feed.youtubeId}&start=${feed.startTime || 0}&end=${feed.endTime || 0}&controls=0&showinfo=0&rel=0&modestbranding=1`
+                : '';
+
               return (
                 <div key={feed.id} onClick={() => openFeed(feed)} className="group relative aspect-square bg-zinc-950 rounded-md overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 transition duration-300">
-                  {hasImg ? (
+                  {hasYoutube ? (
+                    /* 유튜브 영상 우선 렌더링 */
+                    <div className="w-full h-full pointer-events-none scale-105">
+                      <iframe 
+                        className="w-full h-full object-cover" 
+                        src={embedGridUrl} 
+                        frameBorder="0" 
+                        allow="autoplay; encrypted-media" 
+                        allowFullScreen>
+                      </iframe>
+                    </div>
+                  ) : hasImg ? (
                     <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
                   ) : (
                     <div className="w-full h-full p-3 flex items-center justify-center text-center bg-zinc-900 text-[11px] font-light text-zinc-400 leading-relaxed overflow-hidden">
                       <p className="line-clamp-4 text-ellipsis">{feed.bio}</p>
                     </div>
                   )}
-                  {imgList.length > 1 && <div className="absolute top-2 right-2 text-[10px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
+                  
+                  {/* 배지 아이콘 제어 */}
+                  {hasYoutube && (
+                    <div className="absolute top-2 right-2 text-[10px] bg-jazzRed/80 px-1.5 py-0.5 rounded text-white z-10">
+                      <i className="fa-solid fa-play"></i> LIVE
+                    </div>
+                  )}
+                  {!hasYoutube && imgList.length > 1 && (
+                    <div className="absolute top-2 right-2 text-[10px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400 z-10">
+                      <i className="fa-solid fa-layer-group"></i>
+                    </div>
+                  )}
+
                   <div className="absolute inset-0 bg-black/70 flex flex-col justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <h3 className="text-xs text-white truncate capitalize">{feed.title || 'Untitled'}</h3>
                     <p className="text-[10px] text-jazzOrange truncate font-light">{feed.artistName || 'Phill Session'}</p>
@@ -410,8 +437,25 @@ function App() {
           <div className={`relative w-full max-w-[850px] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl transition-all duration-300`}>
             <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white z-10 text-sm"><i className="fa-times fa-solid"></i></button>
 
-            {/* 이미지 슬라이더 */}
+            {/* 미디어 랜더러 (유튜브 우선 처리 및 하이라이트 제어) */}
             {(() => {
+              if (selectedFeed.youtubeId) {
+                // 모달 전용 유튜브 주소 (자동재생, 음소거, 루프, 컨트롤바 숨김 처리 가능)
+                const embedModalUrl = `https://www.youtube.com/embed/${selectedFeed.youtubeId}?autoplay=1&mute=1&loop=1&playlist=${selectedFeed.youtubeId}&start=${selectedFeed.startTime || 0}&end=${selectedFeed.endTime || 0}&controls=1&rel=0`;
+                return (
+                  <div className="w-full md:w-1/2 aspect-square relative bg-black flex items-center justify-center">
+                    <iframe 
+                      className="w-full h-full" 
+                      src={embedModalUrl} 
+                      frameBorder="0" 
+                      allow="autoplay; encrypted-media" 
+                      allowFullScreen>
+                    </iframe>
+                  </div>
+                );
+              }
+
+              // 유튜브 데이터가 없으면 기존의 이미지 슬라이더 동작
               const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
               if (images.length === 0) return null;
               return (
@@ -431,10 +475,13 @@ function App() {
             })()}
 
             {/* 텍스트 및 방명록 댓글 섹션 */}
-            <div className={`flex flex-col justify-between bg-jazzBlack p-6 ${!selectedFeed.coverImage ? 'w-full h-[450px]' : 'w-full md:w-1/2 h-[450px] md:h-auto'}`}>
+            <div className={`flex flex-col justify-between bg-jazzBlack p-6 ${(!selectedFeed.coverImage && !selectedFeed.youtubeId) ? 'w-full h-[450px]' : 'w-full md:w-1/2 h-[450px] md:h-auto'}`}>
               <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
                 <div>
-                  <h2 className="text-xl font-light text-white tracking-wide capitalize">{selectedFeed.title || 'Untitled'}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-light text-white tracking-wide capitalize">{selectedFeed.title || 'Untitled'}</h2>
+                    {selectedFeed.youtubeId && <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Highlight Loop</span>}
+                  </div>
                   <p className="text-xs text-zinc-500 font-light mt-0.5">
                     {selectedFeed.artistName || 'Phill Session'} {selectedFeed.members ? `| ${selectedFeed.members}` : ''}
                   </p>
@@ -443,7 +490,7 @@ function App() {
                   {selectedFeed.bio || <span className="text-zinc-800/40 italic"></span>}
                 </div>
                 
-                {/* 🛠️ 변경 및 고도화된 방명록 댓글 목록 */}
+                {/* 방명록 댓글 목록 */}
                 <div className="h-28 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
                   {(selectedFeed.comments || []).map((c, i) => {
                     const isMyComment = currentUsername && c.user === currentUsername;
@@ -480,7 +527,6 @@ function App() {
                             )}
                           </div>
 
-                          {/* 🛠️ 내가 작성한 댓글인 경우에만 마우스 오버 시 수정/삭제 인터페이스 제공 */}
                           {isMyComment && !isEditing && (
                             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 ml-2 transition-opacity duration-200">
                               <button 
