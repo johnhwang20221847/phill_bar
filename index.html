@@ -18,13 +18,15 @@
   import { getFirestore, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
+  // 어드민 페이지와 동일한 최신 설정값(appId 및 measurementId 포함) 세팅
   const firebaseConfig = {
     apiKey: "AIzaSyADaeEPaUvLyU6J8eIPIy9luNeDhizxg-Q",
     authDomain: "phill-bar.firebaseapp.com",
     projectId: "phill-bar",
     storageBucket: "phill-bar.firebasestorage.app",
     messagingSenderId: "298800907820",
-    appId: "1:298800907820:web:2bad355281976071deb389"
+    appId: "1:298800907820:web:98b360862cf2b0c6deb389", // 최신 앱 ID로 일치화 완료
+    measurementId: "G-BHQEZYV429"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -303,7 +305,7 @@ function App() {
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="relative w-full max-w-sm bg-jazzCard rounded-2xl border border-zinc-800 p-8 shadow-2xl text-center space-y-5">
-            <button onClick={closeAuthModal} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-sm"><i className="fa-solid fa-times"></i></button>
+            <button onClick={closeAuthModal} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-sm"><i className="fa-times fa-solid"></i></button>
             
             {authMode === 'login' && (
               <>
@@ -367,7 +369,7 @@ function App() {
       {selectedFeed && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className={`relative w-full bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl transition-all duration-300 ${!selectedFeed.coverImage ? 'max-w-[450px]' : (!selectedFeed.bio ? 'max-w-[500px]' : 'max-w-[850px]')}`}>
-            <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white z-10 text-sm"><i className="fa-solid fa-times"></i></button>
+            <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white z-10 text-sm"><i className="fa-times fa-solid"></i></button>
 
             {/* 이미지 슬라이더 */}
             {(() => {
