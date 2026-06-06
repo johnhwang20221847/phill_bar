@@ -1,0 +1,486 @@
+slides:온라인 재즈바 Phill 청음공간:index.html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phill | Online Jazzbar & Listening Room</title>
+    
+    <!-- Tailwind CSS & Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- React & Babel for SPA State Management in Single File -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        jazzBlack: '#060202',   /* 극도로 어둡고 차분한 분위기 */
+                        jazzCard: '#120A0A',    /* 카드 및 콘솔 배경 */
+                        jazzRed: '#FF2A1A',     /* image_2a3e6b.png의 붉은 열기 */
+                        jazzOrange: '#FFA100',  /* image_2a3e6b.png의 바깥 노을 */
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'Noto Sans KR', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* 부드러운 스크롤바 디자인 */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(18, 10, 10, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #FF2A1A;
+            border-radius: 9px;
+        }
+        /* 페이드인 트랜지션 */
+        .fade-enter {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        .fade-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 300ms, transform 300ms;
+        }
+        /* 피드 고정 높이 스크롤 전용 */
+        .feed-scroll-container {
+            scrollbar-width: thin;
+            scrollbar-color: #FF2A1A rgba(18, 10, 10, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen overflow-hidden relative flex flex-col justify-between">
+
+    <!-- React App Root -->
+    <div id="root" class="w-full h-screen flex flex-col justify-between z-10"></div>
+
+    <!-- React Logic & UI rendering -->
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // 아티스트 큐레이션 및 인스타 피드용 더미 데이터
+        // 스크린샷 2026-06-06 오후 12.33.22.jpg 의 아티스트 무드를 적용
+        const ARTIST_FEEDS = [
+            {
+                id: 1,
+                title: "experimental hip-hop",
+                artistName: "Peggy & Death Grips",
+                coverImage: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80",
+                members: "Peggy, Zach Hill, MC Ride",
+                likes: "2,442",
+                date: "5월 5일",
+                bio: "경계를 허무는 인디 힙합의 파괴적이고 실험적인 전율을 전합니다. 심야 청음에 가장 적절한 비트의 배열.",
+                music: ["JPEGMAFIA - Hazard Duty Pay!", "Death Grips - Get Got", "Danny Brown - Ain't It Funny"],
+                books: ["마크 피셔 - 자본주의 리얼리즘", "힙합은 어떻게 세상을 지배했는가"],
+                movies: ["블레이드 러너 2049", "파이트 클럽"],
+                comments: [
+                    { user: "savingconnie", text: "Since the beginning of the genre, artists have been pushing what it means to make 'hip-hop music'." },
+                    { user: "therealahype", text: "Numbers On The Board is one of my favorite songs by one of my favorite rappers!!!" },
+                    { user: "kawaiisteez", text: "Hip Hop culture is inherently experimental. Cool picks." },
+                    { user: "michelemangione", text: "Love to see that wu-tang cut. Truly a gem." }
+                ]
+            },
+            {
+                id: 2,
+                title: "classic songs i'll never get sick of",
+                artistName: "Stevie & Wonder Collective",
+                coverImage: "https://images.unsplash.com/photo-1487180142328-0c4e37023af5?auto=format&fit=crop&w=600&q=80",
+                members: "Vocal. Stevie, Bass. Marcus, Drums. Elvin",
+                likes: "1,892",
+                date: "5월 2일",
+                bio: "평생을 들어도 질리지 않는 깊은 소울과 마스터피스 클래식 재즈 넘버들을 복각합니다.",
+                music: ["Stevie Wonder - Sir Duke", "Donny Hathaway - A Song For You", "Al Green - Let's Stay Together"],
+                books: ["무라카미 하루키 - 포트레이트 인 재즈", "빌 에반스 - 재즈의 초상"],
+                movies: ["레이 (Ray)", "그린 북"],
+                comments: [
+                    { user: "jazzlover99", text: "Stevie is the greatest of all time. No question." },
+                    { user: "vinyl_collector", text: "이 플레이리스트는 영원히 들어도 안 질릴 것 같아요." }
+                ]
+            },
+            {
+                id: 3,
+                title: "ranking the films of wes anderson",
+                artistName: "The Anderson Symphony",
+                coverImage: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=600&q=80",
+                members: "Director. Wes, Composer. Alexandre",
+                likes: "3,120",
+                date: "4월 28일",
+                bio: "완벽한 시각적 대칭과 아날로그 감성의 대가, 웨스 앤더슨 영화의 음악적 비하인드를 수집합니다.",
+                music: ["The Bobby Fuller Four - Let Her Dance", "Françoise Hardy - Le Temps de l'Amour"],
+                books: ["웨스 앤더슨 컬렉션", "프랑스 영화의 역사"],
+                movies: ["그랜드 부다페스트 호텔", "로얄 테넌바움", "판타스틱 Mr. 폭스"],
+                comments: [
+                    { user: "cinephile_kim", text: "미장센과 음악의 완벽한 결합." },
+                    { user: "grandbudapest", text: "Alexandre Desplat's soundtrack is pure magic." }
+                ]
+            },
+            {
+                id: 4,
+                title: "love spells appreciation",
+                artistName: "Neon Nocturne",
+                coverImage: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=80",
+                members: "Synthesizer. LUNA, Vocal. JIN",
+                likes: "958",
+                date: "4월 20일",
+                bio: "몽환적인 신스웨이브와 밤의 낭만적인 주문과 같은 사랑 노래 모음집.",
+                music: ["Cigarettes After Sex - Apocalypse", "Beach House - Space Song"],
+                books: ["보들레르 - 악의 꽃", "사랑의 기술"],
+                movies: ["라라랜드", "Her"],
+                comments: [
+                    { user: "dreamy_night", text: "새벽 두 시에 불 끄고 듣기 딱 좋네요." }
+                ]
+            },
+            {
+                id: 5,
+                title: "the art of the one hit wonder",
+                artistName: "The Retro Revivers",
+                coverImage: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?auto=format&fit=crop&w=600&q=80",
+                members: "DJ Retro, Guitar. Paul",
+                likes: "1,104",
+                date: "4월 15일",
+                bio: "반짝 빛나고 사라졌지만, 그 순간만큼은 온 세상을 뒤흔들었던 전설적인 인디 명곡들의 예술성.",
+                music: ["Soft Cell - Tainted Love", "Dexys Midnight Runners - Come On Eileen"],
+                books: ["원히트 원더 전설들", "팝 음악의 비밀"],
+                movies: ["그 여자 작사 그 남자 작곡", "싱 스트리트"],
+                comments: [
+                    { user: "retro_boy", text: "Tainted Love 도입부 신스는 아직도 소름 돋음." }
+                ]
+            },
+            {
+                id: 6,
+                title: "ambient city rain sounds",
+                artistName: "Lofi Cafe & Bar",
+                coverImage: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=600&q=80",
+                members: "Rainmaker, Keyboard. H",
+                likes: "4,230",
+                date: "4월 10일",
+                bio: "창가에 부딪히는 빗소리와 가장 편안하게 매칭되는 부드러운 인디 앰비언트 사운드스케이프.",
+                music: ["Ryuichi Sakamoto - Merry Christmas Mr. Lawrence", "Brian Eno - An Ending"],
+                books: ["은하수를 여행하는 히치하이커를 위한 안내서"],
+                movies: ["언어의 정원", "블레이드 러너"],
+                comments: [
+                    { user: "rainyday", text: "비오는 날 이 공간에서 하루종일 있고 싶다..." }
+                ]
+            },
+            {
+                id: 7,
+                title: "stray cats midnight sessions",
+                artistName: "Stray Cats Trio",
+                coverImage: "https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=600&q=80",
+                members: "Guitar. Leo, Bass. Duke, Sax. Cole",
+                likes: "1,209",
+                date: "4월 05일",
+                bio: "밤거리를 방황하는 길고양이들의 야성미 넘치는 미드나잇 정통 재즈 세션.",
+                music: ["Miles Davis - So What", "John Coltrane - Blue Train"],
+                books: ["재즈를 찾아서", "길 위에서 - 잭 케루악"],
+                movies: ["라운드 미드나잇", "버드 (Bird)"],
+                comments: [
+                    { user: "jazzcat", text: "고양이가 좋아하는 주파수와 정통 재즈의 만남." }
+                ]
+            },
+            {
+                id: 8,
+                title: "vibe collective night shifts",
+                artistName: "The Vibe Collective",
+                coverImage: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=600&q=80",
+                members: "Producer. K, Bass. J",
+                likes: "2,560",
+                date: "3월 30일",
+                bio: "야근하는 영혼들을 위해 만들어진 세련된 다운템포 및 라운지 미니멀리즘 사운드트랙.",
+                music: ["Bonobo - Kiara", "Four Tet - Lush"],
+                books: ["밤의 노동자들", "미니멀 영혼"],
+                movies: ["콜래트럴", "로스트 인 트랜스레이션"],
+                comments: [
+                    { user: "worker_bee", text: "야근하면서 듣다가 퇴근길까지 이어 듣는 마성의 바이브." }
+                ]
+            },
+            {
+                id: 9,
+                title: "dusty needle vinyl memories",
+                artistName: "Dusty Needle",
+                coverImage: "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?auto=format&fit=crop&w=600&q=80",
+                members: "Curation by DJ Dusty",
+                likes: "3,890",
+                date: "3월 25일",
+                bio: "지지직거리는 바이닐 바늘 틈새로 흘러나오는 60년대 모타운과 정통 블루스의 아련한 추억들.",
+                music: ["Otis Redding - (Sittin' On) The Dock of the Bay", "Sam Cooke - A Change Is Gonna Come"],
+                books: ["모타운 레코드의 역사"],
+                movies: ["캐딜락 레코드"],
+                comments: [
+                    { user: "analog_soul", text: "바이닐 특유의 따뜻함이 그대로 느껴지는 큐레이션입니다." }
+                ]
+            }
+        ];
+
+        function App() {
+            const [selectedFeed, setSelectedFeed] = useState(null);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [activeTab, setActiveTab] = useState('music'); // 'music', 'books', 'movies'
+            const [commentList, setCommentList] = useState([]);
+            const [newComment, setNewComment] = useState("");
+            const audioRef = useRef(null);
+
+            // 라디오 음악 리스트 (Royalty-free Lofi Jazz Loop)
+            const radioAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"; 
+
+            // 라디오 재생/일시정지 토글
+            const togglePlay = () => {
+                if (isPlaying) {
+                    audioRef.current.pause();
+                } else {
+                    audioRef.current.play().catch(e => console.log("Audio play blocked by browser. Interaction required first."));
+                }
+                setIsPlaying(!isPlaying);
+            };
+
+            // 피드 선택 시 상세정보 열기
+            const openFeedDetail = (feed) => {
+                setSelectedFeed(feed);
+                setCommentList(feed.comments);
+                setActiveTab('music');
+            };
+
+            // 방명록 댓글 쓰기 기능
+            const handleAddComment = (e) => {
+                e.preventDefault();
+                if (!newComment.trim()) return;
+                const updatedComments = [
+                    ...commentList,
+                    { user: "anon_guest", text: newComment }
+                ];
+                setCommentList(updatedComments);
+                setNewComment("");
+            };
+
+            return (
+                <div className="h-full flex flex-col justify-between relative">
+                    
+                    {/* 🔴 image_2a3e6b.png 컨셉의 구형 오렌지/레드 무드등 배경 이펙트 */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full bg-gradient-to-auto from-jazzRed via-jazzOrange to-transparent opacity-25 blur-[140px] pointer-events-none z-0"></div>
+
+                    {/* 오디오 엘리먼트 */}
+                    <audio ref={audioRef} src={radioAudioUrl} loop />
+
+                    {/* 상단 간결한 헤더 */}
+                    <header className="w-full py-6 text-center border-b border-zinc-900/40 bg-jazzBlack/40 backdrop-blur-md z-20">
+                        <h1 className="text-xl font-light tracking-[0.3em] text-white">PHILL</h1>
+                        <p className="text-[10px] tracking-widest text-zinc-500 mt-1 uppercase">Online Jazzbar & Curated Listening Room</p>
+                    </header>
+
+                    {/* 중앙 피드 레이아웃 (정중앙 고정 3*3 인스타 피드 스타일) */}
+                    <main className="flex-1 flex items-center justify-center p-4 z-10 overflow-hidden">
+                        <div className="w-full max-w-[620px] aspect-square bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 p-4 shadow-2xl shadow-black/80 flex flex-col">
+                            
+                            <div className="flex justify-between items-center mb-3 px-2">
+                                <span className="text-xs tracking-widest text-zinc-400 font-light flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-ping"></span>
+                                    TODAY'S FEEDS
+                                </span>
+                                <span className="text-[10px] text-zinc-600 tracking-widest uppercase">Scroll to explore</span>
+                            </div>
+
+                            {/* 3x3 피드 그리드 영역 (안에서만 스크롤 가능하도록 제한) */}
+                            <div className="flex-1 overflow-y-auto pr-1 feed-scroll-container grid grid-cols-3 gap-2.5 rounded-lg">
+                                {ARTIST_FEEDS.map((feed) => (
+                                    <div 
+                                        key={feed.id} 
+                                        onClick={() => openFeedDetail(feed)}
+                                        className="group relative aspect-square bg-zinc-900 rounded-md overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 transition duration-300"
+                                    >
+                                        <img 
+                                            src={feed.coverImage} 
+                                            alt={feed.title} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition duration-500 opacity-80 group-hover:opacity-100"
+                                        />
+                                        
+                                        {/* 마우스 호버 시 나오는 텍스트 오버레이 */}
+                                        <div className="absolute inset-0 bg-black/80 flex flex-col justify-end p-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                            <p className="text-[10px] text-jazzOrange tracking-widest uppercase font-medium">Click to Listen</p>
+                                            <h3 className="text-xs font-light text-white tracking-wide truncate mt-0.5 capitalize">{feed.title}</h3>
+                                            <p className="text-[10px] text-zinc-400 truncate font-light mt-0.5">{feed.artistName}</p>
+                                        </div>
+
+                                        {/* 기본 노출용 미니멀 타이틀 라벨 */}
+                                        <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-xs px-2 py-1 rounded text-[9px] text-zinc-200 tracking-wide truncate group-hover:opacity-0 transition-opacity">
+                                            {feed.title}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* 하단 심플한 글로벌 라디오 플레이어 */}
+                    <footer className="w-full py-5 border-t border-zinc-900/50 bg-jazzBlack/80 backdrop-blur-md z-20">
+                        <div className="max-w-xl mx-auto px-6 flex justify-between items-center">
+                            <div className="flex items-center space-x-3">
+                                <div className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-jazzRed animate-pulse' : 'bg-zinc-700'}`}></div>
+                                <div className="text-left">
+                                    <p className="text-[10px] text-zinc-500 tracking-widest font-light">PHILL RADIO LIVE</p>
+                                    <p className="text-xs text-zinc-300 font-light tracking-wide truncate max-w-[200px]">
+                                        {isPlaying ? "Smooth Lofi Jazz Session..." : "Muted (Press Listen)"}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={togglePlay}
+                                className="flex items-center space-x-2 text-[11px] tracking-[0.2em] text-zinc-400 hover:text-white transition duration-300"
+                            >
+                                <span>{isPlaying ? 'TURN OFF' : 'LISTEN NOW'}</span>
+                                <span className={`text-sm ${isPlaying ? 'text-jazzRed' : 'text-zinc-600'}`}>
+                                    {isPlaying ? '■' : '▶'}
+                                </span>
+                            </button>
+                        </div>
+                    </footer>
+
+                    {/* ============================================== */}
+                    {/* 스크린샷 2026-06-06 오후 12.33.56.jpg 스타일 상세 모달 뷰 */}
+                    {/* ============================================== */}
+                    {selectedFeed && (
+                        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                            <div className="relative w-full max-w-[840px] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl animate-fade-in">
+                                
+                                {/* 닫기 버튼 */}
+                                <button 
+                                    onClick={() => setSelectedFeed(null)}
+                                    className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg z-10"
+                                >
+                                    <i className="fa-solid fa-times"></i>
+                                </button>
+
+                                {/* 좌측 섹션: 커버 이미지 및 소개 (모달 절반 차지) */}
+                                <div className="w-full md:w-1/2 relative bg-zinc-950 flex flex-col justify-between p-8 border-r border-zinc-900/60">
+                                    <div className="space-y-4">
+                                        <span className="text-[10px] text-jazzRed tracking-[0.3em] font-medium uppercase">Artist Home</span>
+                                        <h2 className="text-3xl font-light tracking-wide text-white capitalize">{selectedFeed.title}</h2>
+                                        <p className="text-xs text-zinc-400 tracking-wider font-light">{selectedFeed.artistName} | {selectedFeed.members}</p>
+                                        
+                                        <div className="w-full aspect-square max-w-[280px] mx-auto rounded-lg overflow-hidden border border-zinc-800 shadow-md">
+                                            <img src={selectedFeed.coverImage} alt={selectedFeed.title} className="w-full h-full object-cover" />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 pt-4 border-t border-zinc-900">
+                                        <p className="text-xs text-zinc-400 font-light leading-relaxed">
+                                            {selectedFeed.bio}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* 우측 섹션: 탭 큐레이션 및 방명록 (인스타그램 댓글 창 스타일) */}
+                                <div className="w-full md:w-1/2 flex flex-col justify-between bg-jazzBlack">
+                                    
+                                    {/* 큐레이션 탭 헤더 */}
+                                    <div className="border-b border-zinc-900/60 p-4">
+                                        <div className="flex justify-around text-xs tracking-widest">
+                                            {['music', 'books', 'movies'].map((tab) => (
+                                                <button
+                                                    key={tab}
+                                                    onClick={() => setActiveTab(tab)}
+                                                    className={`pb-1 transition capitalize ${activeTab === tab ? 'text-jazzRed border-b-2 border-jazzRed font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                                >
+                                                    {tab}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* 활성화된 탭 내용 영역 */}
+                                    <div className="flex-1 p-5 overflow-y-auto max-h-[160px] border-b border-zinc-900/60">
+                                        <ul className="space-y-3">
+                                            {selectedFeed[activeTab].map((item, index) => (
+                                                <li key={index} className="flex items-center space-x-3 text-xs text-zinc-300 font-light">
+                                                    <span className="text-jazzRed text-[10px]">0{index + 1}</span>
+                                                    <span>{item}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+
+                                    {/* 방명록 (방문자 피드백 / 인스타그램 댓글 무드) */}
+                                    <div className="p-4 bg-jazzCard/40 flex-1 overflow-y-auto max-h-[160px] border-b border-zinc-900/60">
+                                        <p className="text-[10px] tracking-widest text-zinc-500 mb-3 uppercase">Listening Room Guestbook</p>
+                                        <div className="space-y-3">
+                                            {commentList.map((c, i) => (
+                                                <div key={i} className="text-[11px] leading-relaxed">
+                                                    <span className="font-semibold text-zinc-300 mr-2">{c.user}</span>
+                                                    <span className="text-zinc-400 font-light">{c.text}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* 좋아요 수 표시 및 댓글 작성 인풋 */}
+                                    <div className="p-4 bg-jazzCard/80">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <div className="flex space-x-3 text-zinc-400 text-sm">
+                                                <button className="hover:text-jazzRed transition"><i className="fa-regular fa-heart"></i></button>
+                                                <button className="hover:text-white transition"><i className="fa-regular fa-comment"></i></button>
+                                            </div>
+                                            <span className="text-[10px] text-zinc-500">{selectedFeed.date}</span>
+                                        </div>
+                                        <p className="text-xs text-zinc-300 mb-2 font-medium">좋아요 {selectedFeed.likes}개</p>
+
+                                        <form onSubmit={handleAddComment} className="flex gap-2">
+                                            <input 
+                                                type="text" 
+                                                value={newComment}
+                                                onChange={(e) => setNewComment(e.target.value)}
+                                                placeholder="청음 소감이나 한 줄 코멘트 쓰기..."
+                                                className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light"
+                                            />
+                                            <button 
+                                                type="submit"
+                                                className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded hover:bg-red-700 transition tracking-wider"
+                                            >
+                                                게시
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+```eof
+
+### 📦 빌드 및 실제 배포 안내 (GitHub + Netlify)
+만들어진 파일은 즉시 배포할 수 있도록 최적화되어 있습니다. 다음 순서로 연동하시면 됩니다:
+
+1.  **로컬 테스트**: 위 코드를 그대로 복사하여 컴퓨터에 `index.html`로 저장하고 브라우저로 더블 클릭하여 정상 작동 여부를 바로 확인하실 수 있습니다.
+2.  **GitHub에 업로드**:
+    *   새 레포지토리를 생성합니다 (예: `phill-online-bar`).
+    *   `index.html` 파일을 해당 레포지토리의 최상단(Root)에 푸시합니다.
+3.  **Netlify 배포**:
+    *   Netlify 로그인 후 **"Add new site" -> "Import an existing project"** 클릭 후 해당 GitHub 레포지토리를 고릅니다.
+    *   Build Command나 Publish Directory는 설정할 필요 없이 공란으로 둔 채로 바로 **Deploy** 버튼을 누르시면 몇 초 만에 실제 주소로 업로드됩니다.
+
+세련되고 차분한 청음 bar 공간, **Phill**의 성공적인 론칭을 응원하겠습니다! 추가적인 디자인 고도화나 음악 오디오 추가 기능이 있다면 언제든 편하게 말씀해 주세요.
