@@ -463,8 +463,8 @@ function App() {
                     <img src={images[currentImgIdx]} className="w-full h-full object-cover" />
                     {images.length > 1 && (
                       <>
-                        <button onClick={() => setCurrentImgIdx(p => p > 0 ? p - 1 : images.length - 1)} className="absolute left-3 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black z-10"><i className="fa-solid fa-chevron-left"></i></button>
-                        <button onClick={() => setCurrentImgIdx(p => p < images.length - 1 ? p + 1 : 0)} className="absolute right-3 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black z-10"><i className="fa-solid fa-chevron-right"></i></button>
+                        <button onClick={() => setCurrentImgIdx(p => p > 0 ? p - 1 : images.length - 1)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black z-10"><i className="fa-solid fa-chevron-left"></i></button>
+                        <button onClick={() => setCurrentImgIdx(p => p < images.length - 1 ? p + 1 : 0)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black z-10"><i className="fa-solid fa-chevron-right"></i></button>
                         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
                           {images.map((_, i) => <div key={i} className={`w-1 h-1 rounded-full ${i === currentImgIdx ? 'bg-jazzRed w-2 transition-all' : 'bg-zinc-600'}`}></div>)}
                         </div>
