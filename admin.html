@@ -1,158 +1,224 @@
-slides:나만의 관리자 대시보드 콘솔:admin.html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phill Console | Admin Control</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&family=Noto+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: { extend: { colors: { jazzBlack: '#060202', jazzCard: '#120A0A', jazzRed: '#FF2A1A', jazzOrange: '#FFA100' } } }
-        }
-    </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phill Console | Admin Control</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&family=Noto+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- Firebase SDK -->
+<script type="module" id="firebase-init">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyADaeEPaUvLyU6J8eIPIy9luNeDhizxg-Q",
+    authDomain: "phill-bar.firebaseapp.com",
+    projectId: "phill-bar",
+    storageBucket: "phill-bar.firebasestorage.app",
+    messagingSenderId: "298800907820",
+    appId: "1:298800907820:web:2bad355281976071deb389"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.__firestore = {
+    db,
+    collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy
+  };
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+<script>
+tailwind.config = {
+  theme: { extend: { colors: { jazzBlack: '#060202', jazzCard: '#120A0A', jazzRed: '#FF2A1A', jazzOrange: '#FFA100' } } }
+}
+</script>
 </head>
 <body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen p-6 flex items-center justify-center">
+<div id="root" class="w-full max-w-4xl h-[90vh]"></div>
 
-    <div id="root" class="w-full max-w-4xl h-[90vh]"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-        
-        // 🔒 관리자 비밀번호 변경 필드
-        const PASS_KEY = "phillbar77"; 
+const PASS_KEY = "phillbar77";
 
-        function AdminApp() {
-            const [isAuthed, setIsAuthed] = useState(false);
-            const [passInput, setPassInput] = useState('');
-            const [feeds, setFeeds] = useState([]);
-            
-            // 등록용 상태
-            const [isEdit, setIsEdit] = useState(false);
-            const [editId, setEditId] = useState(null);
-            const [title, setTitle] = useState('');
-            const [artist, setArtist] = useState('');
-            const [images, setImages] = useState('');
-            const [members, setMembers] = useState('');
-            const [bio, setBio] = useState('');
+function AdminApp() {
+  const [firebaseReady, setFirebaseReady] = useState(!!window.__firestore);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [passInput, setPassInput] = useState('');
+  const [feeds, setFeeds] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-            useEffect(() => {
-                const stored = localStorage.getItem('phill_feeds');
-                if (stored) setFeeds(JSON.parse(stored));
-            }, []);
+  const [isEdit, setIsEdit] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [title, setTitle] = useState('');
+  const [artist, setArtist] = useState('');
+  const [images, setImages] = useState('');
+  const [members, setMembers] = useState('');
+  const [bio, setBio] = useState('');
 
-            const handleLogin = (e) => {
-                e.preventDefault();
-                if (passInput === PASS_KEY) setIsAuthed(true);
-                else alert('인증 토큰이 유효하지 않습니다.');
-            };
+  useEffect(() => {
+    if (!firebaseReady) {
+      window.addEventListener('firebase-ready', () => setFirebaseReady(true), { once: true });
+    }
+  }, []);
 
-            const handleSave = (e) => {
-                e.preventDefault();
-                if (!title && !images && !bio) {
-                    alert('최소한 제목, 이미지, 또는 설명 중 하나는 양식을 충족해야 합니다.');
-                    return;
-                }
+  const loadFeeds = useCallback(async () => {
+    if (!window.__firestore) return;
+    const { db, collection, query, orderBy, getDocs } = window.__firestore;
+    setLoading(true);
+    try {
+      const q = query(collection(db, 'feeds'), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setFeeds(data);
+    } catch(e) {
+      console.error(e);
+    }
+    setLoading(false);
+  }, []);
 
-                let updated;
-                if (isEdit) {
-                    updated = feeds.map(f => f.id === editId ? { ...f, title, artistName: artist, coverImage: images, members, bio } : f);
-                    alert('수정 완료되었습니다.');
-                } else {
-                    const newFeed = { id: Date.now(), title, artistName: artist, coverImage: images, members, bio, date: new Date().toISOString().split('T')[0], comments: [] };
-                    updated = [newFeed, ...feeds];
-                    alert('새 음률 피드가 적재되었습니다.');
-                }
-                
-                setFeeds(updated);
-                localStorage.setItem('phill_feeds', JSON.stringify(updated));
-                clearForm();
-            };
+  useEffect(() => {
+    if (isAuthed && firebaseReady) loadFeeds();
+  }, [isAuthed, firebaseReady]);
 
-            const startEdit = (f) => {
-                setIsEdit(true); setEditId(f.id); setTitle(f.title); setArtist(f.artistName); setImages(f.coverImage); setMembers(f.members); setBio(f.bio);
-            };
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (passInput === PASS_KEY) setIsAuthed(true);
+    else alert('인증 토큰이 유효하지 않습니다.');
+  };
 
-            const handleDelete = (id) => {
-                if (window.confirm('이 공간의 아티스트 기록을 영구 삭제합니까?')) {
-                    const filtered = feeds.filter(f => f.id !== id);
-                    setFeeds(filtered);
-                    localStorage.setItem('phill_feeds', JSON.stringify(filtered));
-                }
-            };
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!title && !images && !bio) {
+      alert('최소한 제목, 이미지, 또는 설명 중 하나는 입력해주세요.');
+      return;
+    }
+    const { db, collection, addDoc, doc, updateDoc, serverTimestamp } = window.__firestore;
+    setLoading(true);
+    try {
+      if (isEdit) {
+        await updateDoc(doc(db, 'feeds', editId), { title, artistName: artist, coverImage: images, members, bio });
+        alert('수정 완료되었습니다.');
+      } else {
+        await addDoc(collection(db, 'feeds'), {
+          title, artistName: artist, coverImage: images, members, bio,
+          comments: [],
+          createdAt: serverTimestamp()
+        });
+        alert('새 피드가 발행되었습니다.');
+      }
+      await loadFeeds();
+      clearForm();
+    } catch(e) {
+      alert('저장 실패: ' + e.message);
+    }
+    setLoading(false);
+  };
 
-            const clearForm = () => {
-                setIsEdit(false); setEditId(null); setTitle(''); setArtist(''); setImages(''); setMembers(''); setBio('');
-            };
+  const startEdit = (f) => {
+    setIsEdit(true); setEditId(f.id); setTitle(f.title || '');
+    setArtist(f.artistName || ''); setImages(f.coverImage || '');
+    setMembers(f.members || ''); setBio(f.bio || '');
+  };
 
-            if (!isAuthed) {
-                return (
-                    <div className="w-full h-full flex items-center justify-center">
-                        <form onSubmit={handleLogin} className="bg-jazzCard p-8 rounded-2xl border border-zinc-800 w-full max-w-sm text-center space-y-4 shadow-xl">
-                            <h2 className="text-xs tracking-[0.2em] text-white uppercase font-light">CONSOLES KEY VERIFICATION</h2>
-                            <input type="password" placeholder="Security Password" value={passInput} onChange={e=>setPassInput(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded py-2 text-xs text-center text-white focus:outline-none focus:border-jazzRed" />
-                            <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2 rounded tracking-widest hover:bg-red-700">ACCESS CONTROL</button>
-                        </form>
-                    </div>
-                );
-            }
+  const handleDelete = async (id) => {
+    if (!window.confirm('이 피드를 영구 삭제합니까?')) return;
+    const { db, doc, deleteDoc } = window.__firestore;
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, 'feeds', id));
+      await loadFeeds();
+    } catch(e) {
+      alert('삭제 실패: ' + e.message);
+    }
+    setLoading(false);
+  };
 
+  const clearForm = () => {
+    setIsEdit(false); setEditId(null); setTitle(''); setArtist('');
+    setImages(''); setMembers(''); setBio('');
+  };
+
+  if (!firebaseReady) {
+    return <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xs tracking-widest">CONNECTING...</div>;
+  }
+
+  if (!isAuthed) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <form onSubmit={handleLogin} className="bg-jazzCard p-8 rounded-2xl border border-zinc-800 w-full max-w-sm text-center space-y-4 shadow-xl">
+          <h2 className="text-xs tracking-[0.2em] text-white uppercase font-light">CONSOLES KEY VERIFICATION</h2>
+          <input type="password" placeholder="Security Password" value={passInput} onChange={e=>setPassInput(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded py-2 text-xs text-center text-white focus:outline-none focus:border-jazzRed" />
+          <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2 rounded tracking-widest hover:bg-red-700">ACCESS CONTROL</button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-jazzCard border border-zinc-800 rounded-2xl p-6 w-full h-full flex flex-col md:flex-row gap-6 shadow-2xl">
+      {/* 에디터 폼 */}
+      <form onSubmit={handleSave} className="w-full md:w-1/2 flex flex-col justify-between space-y-3 overflow-y-auto pr-2">
+        <div className="space-y-3">
+          <h2 className="text-xs text-jazzOrange font-medium tracking-widest uppercase">{isEdit ? "Modify Station" : "Publish New Feed"}</h2>
+          <input type="text" placeholder="피드 제목 (공란 가능)" value={title} onChange={e=>setTitle(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-jazzRed" />
+          <input type="text" placeholder="아티스트 소속 명칭" value={artist} onChange={e=>setArtist(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
+          <input type="text" placeholder="멤버 세션 구성원 정보" value={members} onChange={e=>setMembers(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
+          <div className="bg-zinc-950 p-2 rounded border border-zinc-900 space-y-1.5">
+            <label className="text-[10px] text-zinc-500 block">이미지 소스 주소 URL (다중 업로드는 엔터 줄바꿈 구분, 공란 시 텍스트 전용 전환)</label>
+            <textarea rows="3" placeholder={"https://example.com/image1.jpg\nhttps://example.com/image2.jpg"} value={images} onChange={e=>setImages(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-[11px] text-zinc-300 focus:outline-none"></textarea>
+          </div>
+          <textarea rows="5" placeholder="설명 본문 텍스트란 입력 (공란 가능)" value={bio} onChange={e=>setBio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none"></textarea>
+        </div>
+        <div className="flex gap-2 pt-2">
+          {isEdit && <button type="button" onClick={clearForm} className="w-1/4 bg-zinc-800 text-xs rounded text-zinc-400">취소</button>}
+          <button type="submit" disabled={loading} className="flex-1 bg-jazzRed text-white text-xs py-2 rounded font-medium tracking-wider disabled:opacity-50">
+            {loading ? '처리 중...' : (isEdit ? "수정 반영하기" : "바에 즉시 발행하기")}
+          </button>
+        </div>
+      </form>
+
+      {/* 실시간 보드 현황 */}
+      <div className="w-full md:w-1/2 flex flex-col border-t md:border-t-0 md:border-l border-zinc-900 md:pl-6 pt-4 md:pt-0 overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs text-zinc-500 tracking-widest uppercase">Current Board Feeds ({feeds.length})</h2>
+          <button onClick={loadFeeds} disabled={loading} className="text-[10px] text-zinc-600 hover:text-jazzOrange transition">↻ 새로고침</button>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {loading && feeds.length === 0 && <p className="text-xs text-zinc-600 text-center pt-10">불러오는 중...</p>}
+          {feeds.map(f => {
+            const imgs = f.coverImage ? f.coverImage.split('\n').filter(Boolean) : [];
             return (
-                <div className="bg-jazzCard border border-zinc-800 rounded-2xl p-6 w-full h-full flex flex-col md:flex-row gap-6 shadow-2xl">
-                    {/* 에디터 폼 */}
-                    <form onSubmit={handleSave} className="w-full md:w-1/2 flex flex-col justify-between space-y-3 overflow-y-auto pr-2">
-                        <div className="space-y-3">
-                            <h2 className="text-xs text-jazzOrange font-medium tracking-widest uppercase">{isEdit ? "Modify Station" : "Publish New Feed"}</h2>
-                            <input type="text" placeholder="피드 제목 (공란 가능)" value={title} onChange={e=>setTitle(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-jazzRed" />
-                            <input type="text" placeholder="아티스트 소속 명칭" value={artist} onChange={e=>setArtist(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
-                            <input type="text" placeholder="멤버 세션 구성원 정보" value={members} onChange={e=>setMembers(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
-                            
-                            <div className="bg-zinc-950 p-2 rounded border border-zinc-900 space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 block">이미지 소스 주소 URL (다중 업로드는 엔터 줄바꿈 구분, 공란 시 텍스트 전용 전환)</label>
-                                <textarea rows="3" placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg" value={images} onChange={e=>setImages(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-[11px] text-zinc-300 focus:outline-none"></textarea>
-                            </div>
-
-                            <textarea rows="5" placeholder="설명 본문 텍스트란 입력 (공란 가능)" value={bio} onChange={e=>setBio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none"></textarea>
-                        </div>
-
-                        <div className="flex gap-2 pt-2">
-                            {isEdit && <button type="button" onClick={clearForm} className="w-1/4 bg-zinc-800 text-xs rounded text-zinc-400">취소</button>}
-                            <button type="submit" className="flex-1 bg-jazzRed text-white text-xs py-2 rounded font-medium tracking-wider">{isEdit ? "수정 반영하기" : "바에 즉시 발행하기"}</button>
-                        </div>
-                    </form>
-
-                    {/* 실시간 보드 현황 */}
-                    <div className="w-full md:w-1/2 flex flex-col border-t md:border-t-0 md:border-l border-zinc-900 md:pl-6 pt-4 md:pt-0 overflow-hidden">
-                        <h2 className="text-xs text-zinc-500 tracking-widest mb-3 uppercase">Current Board Feeds ({feeds.length})</h2>
-                        <div className="flex-1 overflow-y-auto space-y-2">
-                            {feeds.map(f => {
-                                const imgs = f.coverImage ? f.coverImage.split('\n').filter(Boolean) : [];
-                                return (
-                                    <div key={f.id} className="bg-zinc-950 p-3 rounded-lg flex items-center justify-between border border-zinc-900">
-                                        <div className="flex items-center space-x-3 overflow-hidden">
-                                            {imgs.length > 0 ? <img src={imgs[0]} className="w-9 h-9 object-cover rounded bg-zinc-900" /> : <div className="w-9 h-9 bg-zinc-900 border border-zinc-800 rounded flex items-center justify-center text-[8px] text-zinc-600">TEXT</div>}
-                                            <div className="overflow-hidden">
-                                                <h4 className="text-xs text-white font-medium truncate capitalize">{f.title || 'Untitled'}</h4>
-                                                <p className="text-[10px] text-zinc-500 truncate">{f.artistName || 'No Name'}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex space-x-2 text-[11px] text-zinc-500">
-                                            <button onClick={() => startEdit(f)} className="hover:text-jazzOrange transition">수정</button>
-                                            <button onClick={() => handleDelete(f.id)} className="hover:text-jazzRed transition">삭제</button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+              <div key={f.id} className="bg-zinc-950 p-3 rounded-lg flex items-center justify-between border border-zinc-900">
+                <div className="flex items-center space-x-3 overflow-hidden">
+                  {imgs.length > 0
+                    ? <img src={imgs[0]} className="w-9 h-9 object-cover rounded bg-zinc-900" />
+                    : <div className="w-9 h-9 bg-zinc-900 border border-zinc-800 rounded flex items-center justify-center text-[8px] text-zinc-600">TEXT</div>
+                  }
+                  <div className="overflow-hidden">
+                    <h4 className="text-xs text-white font-medium truncate capitalize">{f.title || 'Untitled'}</h4>
+                    <p className="text-[10px] text-zinc-500 truncate">{f.artistName || 'No Name'}</p>
+                  </div>
                 </div>
+                <div className="flex space-x-2 text-[11px] text-zinc-500">
+                  <button onClick={() => startEdit(f)} className="hover:text-jazzOrange transition">수정</button>
+                  <button onClick={() => handleDelete(f.id)} className="hover:text-jazzRed transition">삭제</button>
+                </div>
+              </div>
             );
-        }
-        ReactDOM.createRoot(document.getElementById('root')).render(<AdminApp />);
-    </script>
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<AdminApp />);
+</script>
 </body>
 </html>
