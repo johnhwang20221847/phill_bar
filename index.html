@@ -75,6 +75,10 @@ function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [idFindGuide, setIdFindGuide] = useState('');
 
+  // 🛠️ 댓글 수정 관련 상태 필드 추가
+  const [editingCommentIdx, setEditingCommentIdx] = useState(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+
   useEffect(() => {
     const initFirestore = () => {
       const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
@@ -122,6 +126,8 @@ function App() {
   const openFeed = (feed) => {
     setSelectedFeed(feed);
     setCurrentImgIdx(0);
+    setEditingCommentIdx(null); // 모달 열릴 때 초기화
+    setEditingCommentText('');
   };
 
   const handleAddComment = async (e, feedId) => {
@@ -142,7 +148,7 @@ function App() {
 
     const { db, doc, updateDoc, arrayUnion } = window.__firestore;
     const username = user.email.split('@')[0];
-    const newComment = { user: username, text };
+    const newComment = { user: username, text, createdAt: Date.now() };
 
     try {
       await updateDoc(doc(db, 'feeds', feedId), {
@@ -151,6 +157,52 @@ function App() {
       setCommentInputs({ ...commentInputs, [feedId]: "" });
     } catch(err) {
       console.error(err);
+    }
+  };
+
+  // 🛠️ 기능 추가: 댓글 삭제 핸들러
+  const handleDeleteComment = async (feedId, commentIdx) => {
+    if (!window.confirm("이 방명록 댓글을 정말 삭제하시겠습니까?")) return;
+    
+    const { db, doc, updateDoc } = window.__firestore;
+    const currentComments = [...(selectedFeed.comments || [])];
+    currentComments.splice(commentIdx, 1); // 지정 인덱스 요소 제거
+
+    try {
+      await updateDoc(doc(db, 'feeds', feedId), {
+        comments: currentComments
+      });
+      setEditingCommentIdx(null);
+    } catch(err) {
+      console.error("댓글 삭제 실패:", err);
+      alert("댓글 삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 🛠️ 기능 추가: 댓글 수정 완료 핸들러
+  const handleUpdateComment = async (feedId, commentIdx) => {
+    const text = editingCommentText.trim();
+    if (!text) {
+      alert("내용을 입력해주세요.");
+      return;
+    }
+
+    const { db, doc, updateDoc } = window.__firestore;
+    const currentComments = [...(selectedFeed.comments || [])];
+    currentComments[commentIdx] = {
+      ...currentComments[commentIdx],
+      text: text
+    };
+
+    try {
+      await updateDoc(doc(db, 'feeds', feedId), {
+        comments: currentComments
+      });
+      setEditingCommentIdx(null);
+      setEditingCommentText('');
+    } catch(err) {
+      console.error("댓글 수정 실패:", err);
+      alert("댓글 수정 중 오류가 발생했습니다.");
     }
   };
 
@@ -212,6 +264,8 @@ function App() {
     setAuthPassword('');
     setIdFindGuide('');
   };
+
+  const currentUsername = user ? user.email.split('@')[0] : '';
 
   return (
     <div className="h-full flex flex-col justify-between relative">
@@ -353,17 +407,13 @@ function App() {
       {/* 피드 상세 모달 */}
       {selectedFeed && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          {/* 🛠️ 레이아웃 수정: 텍스트 유무와 상관없이 고정형 2분할 가로 폭(max-w-[850px]) 유지 */}
           <div className={`relative w-full max-w-[850px] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl transition-all duration-300`}>
             <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white z-10 text-sm"><i className="fa-times fa-solid"></i></button>
 
             {/* 이미지 슬라이더 */}
             {(() => {
               const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
-              if (images.length === 0) {
-                // 🛠️ 텍스트만 있는 글일 경우 왼쪽을 꽉 채우거나 형태를 맞추기 위해 너비 조정 방어 코드 추가
-                return null;
-              }
+              if (images.length === 0) return null;
               return (
                 <div className="w-full md:w-1/2 aspect-square relative bg-black flex items-center justify-center">
                   <img src={images[currentImgIdx]} className="w-full h-full object-cover" />
@@ -381,7 +431,6 @@ function App() {
             })()}
 
             {/* 텍스트 및 방명록 댓글 섹션 */}
-            {/* 🛠️ 조건문 필터링(hidden) 제거: 사진만 있을 때도 우측 영역이 무조건 고정 노출되도록 함 */}
             <div className={`flex flex-col justify-between bg-jazzBlack p-6 ${!selectedFeed.coverImage ? 'w-full h-[450px]' : 'w-full md:w-1/2 h-[450px] md:h-auto'}`}>
               <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
                 <div>
@@ -391,16 +440,69 @@ function App() {
                   </p>
                 </div>
                 <div className="flex-1 overflow-y-auto pr-1 feed-scroll-container text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2 border-t border-b border-zinc-900/60">
-                  {/* 본문이 비어있으면 공란(투명 슬롯) 상태로 깔끔하게 둡니다 */}
                   {selectedFeed.bio || <span className="text-zinc-800/40 italic"></span>}
                 </div>
+                
+                {/* 🛠️ 변경 및 고도화된 방명록 댓글 목록 */}
                 <div className="h-28 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
-                  {(selectedFeed.comments || []).map((c, i) => (
-                    <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30">
-                      <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
-                      <span className="text-zinc-400 font-light">{c.text}</span>
-                    </div>
-                  ))}
+                  {(selectedFeed.comments || []).map((c, i) => {
+                    const isMyComment = currentUsername && c.user === currentUsername;
+                    const isEditing = editingCommentIdx === i;
+
+                    return (
+                      <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30 flex flex-col justify-between gap-1 group">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
+                            {isEditing ? (
+                              <div className="flex gap-1.5 mt-1">
+                                <input 
+                                  type="text" 
+                                  value={editingCommentText} 
+                                  onChange={(e) => setEditingCommentText(e.target.value)} 
+                                  className="flex-grow bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-xs text-white focus:outline-none focus:border-jazzOrange"
+                                />
+                                <button 
+                                  onClick={() => handleUpdateComment(selectedFeed.id, i)}
+                                  className="text-[10px] text-emerald-500 hover:text-emerald-400 px-1 font-medium"
+                                >
+                                  저장
+                                </button>
+                                <button 
+                                  onClick={() => { setEditingCommentIdx(null); setEditingCommentText(''); }}
+                                  className="text-[10px] text-zinc-500 hover:text-zinc-400 px-1"
+                                >
+                                  취소
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-zinc-400 font-light break-all">{c.text}</span>
+                            )}
+                          </div>
+
+                          {/* 🛠️ 내가 작성한 댓글인 경우에만 마우스 오버 시 수정/삭제 인터페이스 제공 */}
+                          {isMyComment && !isEditing && (
+                            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 ml-2 transition-opacity duration-200">
+                              <button 
+                                onClick={() => { setEditingCommentIdx(i); setEditingCommentText(c.text); }} 
+                                className="text-zinc-500 hover:text-white transition"
+                                title="수정"
+                              >
+                                <i className="fa-solid fa-pen-to-square fa-xs"></i>
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteComment(selectedFeed.id, i)} 
+                                className="text-zinc-500 hover:text-jazzRed transition"
+                                title="삭제"
+                              >
+                                <i className="fa-solid fa-trash fa-xs"></i>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <form onSubmit={(e) => handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-4 border-t border-zinc-900/60 mt-2">
