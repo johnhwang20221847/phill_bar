@@ -1,1047 +1,524 @@
 <!DOCTYPE html>
-
 <html lang="ko">
-
 <head>
-
 <meta charset="UTF-8">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Phill | Online Jazzbar</title>
-
 <script src="https://cdn.tailwindcss.com"></script>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght=200;300;400;500;&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-
-
 <script type="module">
-
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-
   import { getFirestore, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-
-
   const firebaseConfig = {
-
     apiKey: "AIzaSyADaeEPaUvLyU6J8eIPIy9luNeDhizxg-Q",
-
     authDomain: "phill-bar.firebaseapp.com",
-
     projectId: "phill-bar",
-
     storageBucket: "phill-bar.firebasestorage.app",
-
     messagingSenderId: "298800907820",
-
     appId: "1:298800907820:web:98b360862cf2b0c6deb389",
-
     measurementId: "G-BHQEZYV429"
-
   };
-
-
 
   const app = initializeApp(firebaseConfig);
-
   const db = getFirestore(app);
-
   const auth = getAuth(app);
 
-
-
   window.__firestore = { db, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion };
-
   window.__auth = { auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail };
-
   window.dispatchEvent(new Event('firebase-ready'));
-
 </script>
-
-
 
 <script>
-
 tailwind.config = {
-
   theme: {
-
     extend: {
-
       colors: { jazzBlack: '#060202', jazzCard: '#120A0A', jazzRed: '#FF2A1A', jazzOrange: '#FFA100' },
-
       fontFamily: { sans: ['Outfit', 'Noto Sans KR', 'sans-serif'] }
-
     }
-
   }
-
 }
-
 </script>
-
 <style>
-
 ::-webkit-scrollbar { width: 4px; }
-
 ::-webkit-scrollbar-thumb { background: #FF2A1A; border-radius: 4px; }
-
 .feed-scroll-container { scrollbar-width: thin; scrollbar-color: #FF2A1A transparent; }
-
 </style>
-
 </head>
-
 <body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen overflow-hidden relative flex flex-col justify-between">
-
 <div id="root" class="w-full h-screen flex flex-col justify-between z-10"></div>
 
-
-
 <script type="text/babel">
-
 const { useState, useEffect, useRef } = React;
 
-
-
 function App() {
-
   const [feeds, setFeeds] = useState([]);
-
   const [loading, setLoading] = useState(true);
-
   const [selectedFeed, setSelectedFeed] = useState(null);
-
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
-
   const [isPlaying, setIsPlaying] = useState(false);
-
   const [commentInputs, setCommentInputs] = useState({});
-
   const audioRef = useRef(null);
 
-
-
   const [user, setUser] = useState(null);
-
   const [showAuthModal, setShowAuthModal] = useState(false);
-
   const [authMode, setAuthMode] = useState('login'); 
-
   const [authEmail, setAuthEmail] = useState('');
-
   const [authPassword, setAuthPassword] = useState('');
-
   const [idFindGuide, setIdFindGuide] = useState('');
 
-
-
   // 🛠️ 댓글 수정 관련 상태 필드 추가
-
   const [editingCommentIdx, setEditingCommentIdx] = useState(null);
-
   const [editingCommentText, setEditingCommentText] = useState('');
 
-
-
   useEffect(() => {
-
     const initFirestore = () => {
-
       const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
-
       const q = query(collection(db, 'feeds'), orderBy('createdAt', 'desc'));
-
       return onSnapshot(q, (snapshot) => {
-
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
         setFeeds(data);
-
         setLoading(false);
-
         setSelectedFeed(prev => prev ? (data.find(f => f.id === prev.id) || null) : null);
-
       });
-
     };
-
-
 
     const initAuth = () => {
-
       const { auth, onAuthStateChanged } = window.__auth;
-
       return onAuthStateChanged(auth, (currentUser) => {
-
         setUser(currentUser);
-
       });
-
     };
-
-
 
     let unsubFirestore;
-
     let unsubAuth;
 
-
-
     if (window.__firestore && window.__auth) {
-
       unsubFirestore = initFirestore();
-
       unsubAuth = initAuth();
-
     } else {
-
       window.addEventListener('firebase-ready', () => {
-
         unsubFirestore = initFirestore();
-
         unsubAuth = initAuth();
-
       }, { once: true });
-
     }
-
-
 
     return () => {
-
       if (unsubFirestore) unsubFirestore();
-
       if (unsubAuth) unsubAuth();
-
     };
-
   }, []);
 
-
-
   const togglePlay = () => {
-
     if (isPlaying) audioRef.current.pause();
-
     else audioRef.current.play().catch(()=>{});
-
     setIsPlaying(!isPlaying);
-
   };
-
-
 
   const openFeed = (feed) => {
-
     setSelectedFeed(feed);
-
     setCurrentImgIdx(0);
-
     setEditingCommentIdx(null); // 모달 열릴 때 초기화
-
     setEditingCommentText('');
-
   };
-
-
 
   const handleAddComment = async (e, feedId) => {
-
     e.preventDefault();
-
     if (!user) {
-
       alert("방명록을 남기려면 먼저 로그인해 주세요.");
-
       setAuthMode('login');
-
       setShowAuthModal(true);
-
       return;
-
     }
-
     if (!user.emailVerified) {
-
       alert("이메일 인증 링크를 완료한 계정만 방명록 참여가 가능합니다. 메일함을 확인해 주세요.");
-
       return;
-
     }
-
-
 
     const text = (commentInputs[feedId] || "").trim();
-
     if (!text) return;
 
-
-
     const { db, doc, updateDoc, arrayUnion } = window.__firestore;
-
     const username = user.email.split('@')[0];
-
     const newComment = { user: username, text, createdAt: Date.now() };
 
-
-
     try {
-
       await updateDoc(doc(db, 'feeds', feedId), {
-
         comments: arrayUnion(newComment)
-
       });
-
       setCommentInputs({ ...commentInputs, [feedId]: "" });
-
     } catch(err) {
-
       console.error(err);
-
     }
-
   };
-
-
 
   // 🛠️ 기능 추가: 댓글 삭제 핸들러
-
   const handleDeleteComment = async (feedId, commentIdx) => {
-
     if (!window.confirm("이 방명록 댓글을 정말 삭제하시겠습니까?")) return;
-
     
-
     const { db, doc, updateDoc } = window.__firestore;
-
     const currentComments = [...(selectedFeed.comments || [])];
-
     currentComments.splice(commentIdx, 1); // 지정 인덱스 요소 제거
 
-
-
     try {
-
       await updateDoc(doc(db, 'feeds', feedId), {
-
         comments: currentComments
-
       });
-
       setEditingCommentIdx(null);
-
     } catch(err) {
-
       console.error("댓글 삭제 실패:", err);
-
       alert("댓글 삭제 중 오류가 발생했습니다.");
-
     }
-
   };
-
-
 
   // 🛠️ 기능 추가: 댓글 수정 완료 핸들러
-
   const handleUpdateComment = async (feedId, commentIdx) => {
-
     const text = editingCommentText.trim();
-
     if (!text) {
-
       alert("내용을 입력해주세요.");
-
       return;
-
     }
-
-
 
     const { db, doc, updateDoc } = window.__firestore;
-
     const currentComments = [...(selectedFeed.comments || [])];
-
     currentComments[commentIdx] = {
-
       ...currentComments[commentIdx],
-
       text: text
-
     };
 
-
-
     try {
-
       await updateDoc(doc(db, 'feeds', feedId), {
-
         comments: currentComments
-
       });
-
       setEditingCommentIdx(null);
-
       setEditingCommentText('');
-
     } catch(err) {
-
       console.error("댓글 수정 실패:", err);
-
       alert("댓글 수정 중 오류가 발생했습니다.");
-
     }
-
   };
-
-
 
   const handleSignIn = (e) => {
-
     e.preventDefault();
-
     const { auth, signInWithEmailAndPassword } = window.__auth;
-
     signInWithEmailAndPassword(auth, authEmail, authPassword)
-
       .then((userCredential) => {
-
         if (!userCredential.user.emailVerified) {
-
           alert("⚠️ 아직 이메일 인증이 완료되지 않은 계정입니다. 발송된 이메일의 링크를 승인해 주세요!");
-
         } else {
-
           alert("재즈바 공간에 정상적으로 입장했습니다.");
-
         }
-
         closeAuthModal();
-
       })
-
       .catch(err => alert(`로그인 실패: 이메일 또는 비밀번호를 다시 확인하세요.`));
-
   };
-
-
 
   const handleSignUp = (e) => {
-
     e.preventDefault();
-
     const { auth, createUserWithEmailAndPassword, sendEmailVerification } = window.__auth;
-
     createUserWithEmailAndPassword(auth, authEmail, authPassword)
-
       .then((userCredential) => {
-
         sendEmailVerification(userCredential.user)
-
           .then(() => {
-
             alert("✉️ 가입하신 메일 주소로 인증 링크가 발송되었습니다! 메일함 확인 후 인증을 완료하고 로그인해 주세요.");
-
             window.__auth.signOut(auth);
-
             setAuthMode('login');
-
           });
-
       })
-
       .catch(err => alert(`회원가입 실패: ${err.message}`));
-
   };
-
-
 
   const handleResetPw = (e) => {
-
     e.preventDefault();
-
     if (!authEmail) { alert("비밀번호를 재설정할 이메일 주소를 적어주세요."); return; }
-
     const { auth, sendPasswordResetEmail } = window.__auth;
-
     sendPasswordResetEmail(auth, authEmail)
-
       .then(() => {
-
         alert("✉️ 비밀번호를 안전하게 재변경할 수 있는 링크 메일을 보냈습니다. 수신함을 확인하세요.");
-
         setAuthMode('login');
-
       })
-
       .catch(err => alert(`오류 발생: ${err.message}`));
-
   };
-
-
 
   const handleFindIdGuide = (e) => {
-
     e.preventDefault();
-
     setIdFindGuide("💡 Phill Online Bar는 이메일 연동 기반 회원제입니다. 본인 가입 메일을 확인하시려면 수신 메일함에서 'noreply' 혹은 'phill-bar' 발송 기록을 찾아보세요.");
-
   };
-
-
 
   const handleSignOut = () => {
-
     const { auth, signOut } = window.__auth;
-
     signOut(auth).then(() => alert("공간에서 로그아웃 처리되었습니다."));
-
   };
-
-
 
   const closeAuthModal = () => {
-
     setShowAuthModal(false);
-
     setAuthEmail('');
-
     setAuthPassword('');
-
     setIdFindGuide('');
-
   };
-
-
 
   const currentUsername = user ? user.email.split('@')[0] : '';
 
-
-
   return (
-
     <div className="h-full flex flex-col justify-between relative">
-
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full bg-gradient-to-br from-jazzRed via-jazzOrange to-transparent opacity-20 blur-[140px] pointer-events-none z-0"></div>
-
       <audio ref={audioRef} src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" loop />
 
-
-
       <header className="w-full py-6 px-6 relative bg-jazzBlack/40 backdrop-blur-md z-20 border-b border-zinc-900/40 flex items-center justify-between">
-
         <div className="w-16"></div>
-
         <div className="text-center">
-
           <h1 className="text-xl font-light tracking-[0.3em] text-white">PHILL</h1>
-
           <p className="text-[10px] tracking-widest text-zinc-500 mt-0.5 uppercase">Online Jazzbar & Space</p>
-
         </div>
-
         <div className="w-16 text-right">
-
           {user ? (
-
             <button onClick={handleSignOut} className="text-[10px] tracking-wider text-zinc-500 hover:text-white transition uppercase">Logout</button>
-
           ) : (
-
             <button onClick={() => { setAuthMode('login'); setShowAuthModal(true); }} className="text-[10px] tracking-wider text-jazzOrange hover:text-white transition uppercase">Login</button>
-
           )}
-
         </div>
-
       </header>
 
-
-
       <main className="flex-1 flex items-center justify-center p-4 z-10 overflow-hidden">
-
         <div className="w-full max-w-[620px] aspect-square bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 p-4 shadow-2xl flex flex-col">
-
           <div className="flex-1 overflow-y-auto pr-1 feed-scroll-container grid grid-cols-3 gap-2.5 rounded-lg">
-
             {loading && (
-
               <div className="col-span-3 h-full flex flex-col items-center justify-center text-zinc-600 text-xs font-light tracking-widest gap-2 py-32">
-
                 <i className="fa-solid fa-xs fa-circle-nodes animate-pulse"></i>
-
                 <span>LOADING SOUNDS...</span>
-
               </div>
-
             )}
-
             {!loading && feeds.map((feed) => {
-
               const imgList = feed.coverImage ? feed.coverImage.split('\n').filter(Boolean) : [];
-
               const hasImg = imgList.length > 0;
-
               return (
-
                 <div key={feed.id} onClick={() => openFeed(feed)} className="group relative aspect-square bg-zinc-950 rounded-md overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 transition duration-300">
-
                   {hasImg ? (
-
                     <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
-
                   ) : (
-
                     <div className="w-full h-full p-3 flex items-center justify-center text-center bg-zinc-900 text-[11px] font-light text-zinc-400 leading-relaxed overflow-hidden">
-
                       <p className="line-clamp-4 text-ellipsis">{feed.bio}</p>
-
                     </div>
-
                   )}
-
                   {imgList.length > 1 && <div className="absolute top-2 right-2 text-[10px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
-
                   <div className="absolute inset-0 bg-black/70 flex flex-col justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-
                     <h3 className="text-xs text-white truncate capitalize">{feed.title || 'Untitled'}</h3>
-
                     <p className="text-[10px] text-jazzOrange truncate font-light">{feed.artistName || 'Phill Session'}</p>
-
                   </div>
-
                 </div>
-
               );
-
             })}
-
             {!loading && feeds.length === 0 && (
-
               <div className="col-span-3 h-full flex flex-col items-center justify-center text-zinc-600 text-xs font-light tracking-widest gap-2 py-32">
-
                 <i className="fa-solid fa-xs fa-circle-nodes animate-pulse"></i>
-
                 <span>BAR EMPTY. AWAITING SOUNDS.</span>
-
               </div>
-
             )}
-
           </div>
-
         </div>
-
       </main>
 
-
-
       <footer className="w-full py-5 border-t border-zinc-900/50 bg-jazzBlack/80 backdrop-blur-md z-20">
-
         <div className="max-w-xl mx-auto px-6 flex justify-between items-center">
-
           <div className="flex items-center space-x-3">
-
             <div className={`w-1.5 h-1.5 rounded-full ${isPlaying ? 'bg-jazzRed animate-pulse' : 'bg-zinc-700'}`}></div>
-
             <p className="text-xs text-zinc-400 font-light tracking-wide">
-
               {user ? `Audience: ${user.email.split('@')[0]}` : isPlaying ? "Streaming Radio Session..." : "Radio Muted"}
-
             </p>
-
           </div>
-
           <button onClick={togglePlay} className="text-[11px] tracking-[0.2em] text-zinc-400 hover:text-white transition flex items-center gap-2">
-
             <span>{isPlaying ? 'TURN OFF' : 'LISTEN NOW'}</span>
-
             <span className="text-xs">{isPlaying ? '■' : '▶'}</span>
-
           </button>
-
         </div>
-
       </footer>
 
-
-
       {showAuthModal && (
-
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-
           <div className="relative w-full max-w-sm bg-jazzCard rounded-2xl border border-zinc-800 p-8 shadow-2xl text-center space-y-5">
-
             <button onClick={closeAuthModal} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-sm"><i className="fa-times fa-solid"></i></button>
-
             
-
             {authMode === 'login' && (
-
               <>
-
                 <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Jazzbar Access Space</h2>
-
                 <form onSubmit={handleSignIn} className="space-y-3 pt-2">
-
                   <input type="email" placeholder="이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
-
                   <input type="password" placeholder="비밀번호" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
-
                   <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SIGN IN</button>
-
                 </form>
-
                 <div className="flex justify-between text-[11px] text-zinc-600 px-1 pt-1">
-
                   <button onClick={() => setAuthMode('register')} className="hover:text-zinc-400 transition">회원가입</button>
-
                   <div className="space-x-2">
-
                     <button onClick={() => { setAuthMode('findId'); setIdFindGuide(''); }} className="hover:text-zinc-400 transition">아이디 찾기</button>
-
                     <span>|</span>
-
                     <button onClick={() => setAuthMode('findPw')} className="hover:text-zinc-400 transition">비밀번호 재설정</button>
-
                   </div>
-
                 </div>
-
               </>
-
             )}
-
-
 
             {authMode === 'register' && (
-
               <>
-
                 <h2 className="text-xs tracking-[0.25em] text-jazzOrange uppercase font-light">Create Guest Account</h2>
-
                 <p className="text-[10px] text-zinc-500 leading-normal font-light">인증 허가가 가능한 실제 소유한 이메일을 기입해 주세요.</p>
-
                 <form onSubmit={handleSignUp} className="space-y-3 pt-1">
-
                   <input type="email" placeholder="이메일 주소 입력" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" required />
-
                   <input type="password" placeholder="비밀번호 (6자 이상)" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" minLength="6" required />
-
                   <button type="submit" className="w-full bg-jazzOrange text-black text-xs py-2.5 rounded font-semibold hover:bg-amber-600 transition">인증 이메일 승인 및 가입</button>
-
                 </form>
-
                 <button onClick={() => setAuthMode('login')} className="text-xs text-zinc-500 hover:text-white transition block mx-auto pt-2">이전으로 돌아가기</button>
-
               </>
-
             )}
-
-
 
             {authMode === 'findId' && (
-
               <>
-
                 <h2 className="text-xs tracking-[0.25em] text-zinc-400 uppercase font-light">Account Identification</h2>
-
                 <div className="bg-zinc-950 p-4 rounded border border-zinc-900 text-left text-xs text-zinc-400 leading-relaxed font-light">
-
                   {idFindGuide || "보안 정책상 가입 이메일의 로우 리스트 데이터는 임의 제공되지 않습니다. 하단 안내를 실행하세요."}
-
                 </div>
-
                 {!idFindGuide && <button onClick={handleFindIdGuide} className="w-full bg-zinc-800 text-white text-xs py-2 rounded font-light hover:bg-zinc-700">인증 계정 식별 가이드 보기</button>}
-
                 <button onClick={() => setAuthMode('login')} className="text-xs text-zinc-500 hover:text-white transition block mx-auto pt-2">로그인 화면으로</button>
-
               </>
-
             )}
-
-
 
             {authMode === 'findPw' && (
-
               <>
-
                 <h2 className="text-xs tracking-[0.25em] text-zinc-400 uppercase font-light">Reset Password</h2>
-
                 <p className="text-[10px] text-zinc-500 font-light">가입 시 등록했던 이메일로 비밀번호 재설정 주소를 보내드립니다.</p>
-
                 <form onSubmit={handleResetPw} className="space-y-3 pt-1">
-
                   <input type="email" placeholder="이메일 주소 입력" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none font-light" required />
-
                   <button type="submit" className="w-full bg-zinc-800 text-zinc-300 hover:text-white text-xs py-2.5 rounded font-medium transition">변경 확인 이메일 전송</button>
-
                 </form>
-
                 <button onClick={() => setAuthMode('login')} className="text-xs text-zinc-500 hover:text-white transition block mx-auto pt-1">취소</button>
-
               </>
-
             )}
-
           </div>
-
         </div>
-
       )}
-
-
 
       {/* 피드 상세 모달 */}
-
       {selectedFeed && (
-
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-
           <div className={`relative w-full max-w-[850px] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl transition-all duration-300`}>
-
             <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white z-10 text-sm"><i className="fa-times fa-solid"></i></button>
 
-
-
             {/* 이미지 슬라이더 */}
-
             {(() => {
-
               const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
-
               if (images.length === 0) return null;
-
               return (
-
                 <div className="w-full md:w-1/2 aspect-square relative bg-black flex items-center justify-center">
-
                   <img src={images[currentImgIdx]} className="w-full h-full object-cover" />
-
                   {images.length > 1 && (
-
                     <>
-
                       <button onClick={() => setCurrentImgIdx(p => p > 0 ? p - 1 : images.length - 1)} className="absolute left-3 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black"><i className="fa-solid fa-chevron-left"></i></button>
-
                       <button onClick={() => setCurrentImgIdx(p => p < images.length - 1 ? p + 1 : 0)} className="absolute right-3 bg-black/50 w-7 h-7 rounded-full text-white text-xs flex items-center justify-center hover:bg-black"><i className="fa-solid fa-chevron-right"></i></button>
-
                       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-
                         {images.map((_, i) => <div key={i} className={`w-1 h-1 rounded-full ${i === currentImgIdx ? 'bg-jazzRed w-2 transition-all' : 'bg-zinc-600'}`}></div>)}
-
                       </div>
-
                     </>
-
                   )}
-
                 </div>
-
               );
-
             })()}
 
-
-
             {/* 텍스트 및 방명록 댓글 섹션 */}
-
             <div className={`flex flex-col justify-between bg-jazzBlack p-6 ${!selectedFeed.coverImage ? 'w-full h-[450px]' : 'w-full md:w-1/2 h-[450px] md:h-auto'}`}>
-
               <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
-
                 <div>
-
                   <h2 className="text-xl font-light text-white tracking-wide capitalize">{selectedFeed.title || 'Untitled'}</h2>
-
                   <p className="text-xs text-zinc-500 font-light mt-0.5">
-
                     {selectedFeed.artistName || 'Phill Session'} {selectedFeed.members ? `| ${selectedFeed.members}` : ''}
-
                   </p>
-
                 </div>
-
                 <div className="flex-1 overflow-y-auto pr-1 feed-scroll-container text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2 border-t border-b border-zinc-900/60">
-
                   {selectedFeed.bio || <span className="text-zinc-800/40 italic"></span>}
-
                 </div>
-
                 
-
                 {/* 🛠️ 변경 및 고도화된 방명록 댓글 목록 */}
-
                 <div className="h-28 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
-
                   {(selectedFeed.comments || []).map((c, i) => {
-
                     const isMyComment = currentUsername && c.user === currentUsername;
-
                     const isEditing = editingCommentIdx === i;
 
-
-
                     return (
-
                       <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30 flex flex-col justify-between gap-1 group">
-
                         <div className="flex items-start justify-between">
-
                           <div className="flex-1">
-
                             <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
-
                             {isEditing ? (
-
                               <div className="flex gap-1.5 mt-1">
-
                                 <input 
-
                                   type="text" 
-
                                   value={editingCommentText} 
-
                                   onChange={(e) => setEditingCommentText(e.target.value)} 
-
                                   className="flex-grow bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-xs text-white focus:outline-none focus:border-jazzOrange"
-
                                 />
-
                                 <button 
-
                                   onClick={() => handleUpdateComment(selectedFeed.id, i)}
-
                                   className="text-[10px] text-emerald-500 hover:text-emerald-400 px-1 font-medium"
-
                                 >
-
                                   저장
-
                                 </button>
-
                                 <button 
-
                                   onClick={() => { setEditingCommentIdx(null); setEditingCommentText(''); }}
-
                                   className="text-[10px] text-zinc-500 hover:text-zinc-400 px-1"
-
                                 >
-
                                   취소
-
                                 </button>
-
                               </div>
-
                             ) : (
-
                               <span className="text-zinc-400 font-light break-all">{c.text}</span>
-
                             )}
-
                           </div>
 
-
-
                           {/* 🛠️ 내가 작성한 댓글인 경우에만 마우스 오버 시 수정/삭제 인터페이스 제공 */}
-
                           {isMyComment && !isEditing && (
-
                             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 ml-2 transition-opacity duration-200">
-
                               <button 
-
                                 onClick={() => { setEditingCommentIdx(i); setEditingCommentText(c.text); }} 
-
                                 className="text-zinc-500 hover:text-white transition"
-
                                 title="수정"
-
                               >
-
                                 <i className="fa-solid fa-pen-to-square fa-xs"></i>
-
                               </button>
-
                               <button 
-
                                 onClick={() => handleDeleteComment(selectedFeed.id, i)} 
-
                                 className="text-zinc-500 hover:text-jazzRed transition"
-
                                 title="삭제"
-
                               >
-
                                 <i className="fa-solid fa-trash fa-xs"></i>
-
                               </button>
-
                             </div>
-
                           )}
-
                         </div>
-
                       </div>
-
                     );
-
                   })}
-
                 </div>
-
               </div>
-
               <form onSubmit={(e) => handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-4 border-t border-zinc-900/60 mt-2">
-
                 <input type="text" placeholder={user ? "방명록의 문장을 남겨주세요..." : "로그인 후 작성이 가능합니다..."} value={commentInputs[selectedFeed.id] || ""} onChange={(e) => setCommentInputs({ ...commentInputs, [selectedFeed.id]: e.target.value })} className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" />
-
                 <button type="submit" className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded hover:bg-red-700 font-medium">게시</button>
-
               </form>
-
             </div>
 
-
-
           </div>
-
         </div>
-
       )}
-
     </div>
-
   );
-
 }
 
-
-
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-
 </script>
-
 </body>
-
 </html>
