@@ -64,8 +64,8 @@ tailwind.config = {
 }
 </style>
 </head>
-<body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen overflow-hidden relative flex flex-col justify-between">
-<div id="root" class="w-full h-screen flex flex-col justify-between z-10"></div>
+<body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen relative flex flex-col justify-between overflow-x-hidden">
+<div id="root" class="w-full min-h-screen flex flex-col justify-between z-10"></div>
 
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
@@ -79,7 +79,6 @@ function App() {
   const [commentInputs, setCommentInputs] = useState({});
   const audioRef = useRef(null);
 
-  // 👆 모바일 최적화 스와이프 변수 구조 개선
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const isDragging = useRef(false);
@@ -238,10 +237,9 @@ function App() {
     setCurrentImgIdx((prev) => (prev - 1 + imagesCount) % imagesCount);
   };
 
-  // 👆 모바일 브라우저 오작동을 최소화한 Touch 핸들러
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches ? e.touches[0].clientX : e.clientX;
-    touchEndX.current = touchStartX.current; // 초기화 에러 방지
+    touchEndX.current = touchStartX.current; 
     isDragging.current = true;
   };
 
@@ -320,12 +318,12 @@ function App() {
   const currentUsername = user ? user.email.split('@')[0] : '';
 
   return (
-    <div className="h-full flex flex-col justify-between relative">
+    <div className="min-h-screen flex flex-col justify-between relative">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-to-br from-jazzRed via-jazzOrange to-transparent opacity-15 blur-[160px] pointer-events-none z-0"></div>
       <audio ref={audioRef} src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" loop />
 
       {/* 헤더 */}
-      <header className="w-full py-5 px-6 relative bg-jazzBlack/40 backdrop-blur-md z-20 border-b border-zinc-900/40 flex items-center justify-between">
+      <header className="w-full py-5 px-6 sticky top-0 bg-jazzBlack/80 backdrop-blur-md z-40 border-b border-zinc-900/40 flex items-center justify-between">
         <div className="w-16"></div>
         <div className="text-center">
           <h1 className="text-xl font-light tracking-[0.3em] text-white">PHILL</h1>
@@ -340,18 +338,20 @@ function App() {
         </div>
       </header>
 
-      {/* 메인 컴포넌트 */}
-      <main className="flex-1 flex items-center justify-center p-3 md:p-4 z-10 overflow-hidden">
-        <div className="w-full max-w-[980px] h-full md:h-[580px] bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 shadow-2xl flex flex-col md:flex-row overflow-hidden">
+      {/* 메인 영역 (모바일 스크롤 확보를 위해 pb-32 패딩 추가) */}
+      <main className="flex-1 w-full flex justify-center p-3 md:p-4 z-10 pb-32 md:pb-4">
+        <div className="w-full max-w-[980px] bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 shadow-2xl flex flex-col md:flex-row md:h-[580px] overflow-hidden">
           
           {/* 1. 게시판 영역 */}
-          <div className={`w-full md:w-[60%] h-full p-4 flex flex-col md:border-r border-zinc-900/60 ${activeTab === 'archive' ? 'flex' : 'hidden md:flex'}`}>
-            <div className="mb-2 px-1 flex items-center gap-2">
+          <div className={`w-full md:w-[60%] p-4 flex flex-col md:border-r border-zinc-900/60 ${activeTab === 'archive' ? 'block' : 'hidden md:flex'}`}>
+            <div className="mb-3 px-1 flex items-center gap-2">
               <span className="text-[10px] tracking-widest text-zinc-400 uppercase font-light">SOUND ARCHIVE</span>
             </div>
-            <div className="flex-1 overflow-y-auto pr-1 feed-scroll-container grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-lg">
+            
+            {/* 그리드 레이아웃: 모바일에서는 막힘없이 확장되며 데스크톱에선 내부 스크롤 */}
+            <div className="grid grid-cols-2 gap-3 rounded-lg md:overflow-y-auto md:max-h-[500px] pr-1 feed-scroll-container">
               {loading && (
-                <div className="col-span-3 h-full flex flex-col items-center justify-center text-zinc-600 text-xs font-light tracking-widest gap-2 py-32">
+                <div className="col-span-2 h-full flex flex-col items-center justify-center text-zinc-600 text-xs font-light tracking-widest gap-2 py-32">
                   <i className="fa-solid fa-xs fa-circle-nodes animate-pulse"></i>
                   <span>LOADING SOUNDS...</span>
                 </div>
@@ -362,23 +362,29 @@ function App() {
                 const hasVideo = !!feed.youtubeId;
 
                 return (
-                  <div key={feed.id} onClick={() => openFeed(feed)} className="group relative aspect-square bg-zinc-950 rounded-md overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 transition duration-300">
+                  <div 
+                    key={feed.id} 
+                    onClick={() => openFeed(feed)} 
+                    className="group relative aspect-square bg-zinc-950 rounded-xl overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 active:scale-[0.98] transition-all duration-200"
+                  >
                     {hasImg ? (
-                      <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
+                      <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt="cover" />
                     ) : hasVideo ? (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black p-2 text-center">
-                        <i className="fa-brands fa-youtube text-xl text-jazzRed mb-1 animate-pulse"></i>
+                        <i className="fa-brands fa-youtube text-xl text-jazzRed mb-1"></i>
                         <span className="text-[8px] uppercase tracking-widest text-zinc-500 font-medium">YOUTUBE Loop</span>
                       </div>
                     ) : (
-                      <div className="w-full h-full p-2 flex items-center justify-center text-center bg-zinc-900 text-[10px] font-light text-zinc-400 leading-relaxed overflow-hidden">
+                      <div className="w-full h-full p-3 flex items-center justify-center text-center bg-zinc-900 text-[10px] font-light text-zinc-400 leading-relaxed overflow-hidden">
                         <p className="line-clamp-4 text-ellipsis">{feed.bio}</p>
                       </div>
                     )}
-                    {imgList.length > 1 && <div className="absolute top-1.5 right-1.5 text-[9px] bg-black/60 px-1 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
-                    <div className="absolute inset-0 bg-black/70 flex flex-col justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <h3 className="text-[11px] text-white truncate capitalize">{feed.title || 'Untitled'}</h3>
-                      <p className="text-[9px] text-jazzOrange truncate font-light">{feed.artistName || 'Phill Session'}</p>
+                    {imgList.length > 1 && <div className="absolute top-2 right-2 text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
+                    
+                    {/* 모바일 화면 배려 그라데이션 타이틀 상시 활성화 조치 */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-3 opacity-95 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                      <h3 className="text-[11px] text-white truncate font-medium capitalize">{feed.title || 'Untitled'}</h3>
+                      <p className="text-[9px] text-jazzOrange truncate font-light mt-0.5">{feed.artistName || 'Phill Session'}</p>
                     </div>
                   </div>
                 );
@@ -387,7 +393,7 @@ function App() {
           </div>
 
           {/* 2. 실시간 라운지 채팅 영역 */}
-          <div className={`w-full md:w-[40%] h-full flex flex-col justify-between bg-black/15 ${activeTab === 'lounge' ? 'flex' : 'hidden md:flex'}`}>
+          <div className={`w-full md:w-[40%] flex flex-col justify-between bg-black/15 h-[calc(100vh-250px)] md:h-full ${activeTab === 'lounge' ? 'flex' : 'hidden md:flex'}`}>
             <div className="p-4 border-b border-zinc-900/50 flex items-center justify-between bg-black/20">
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse"></span>
@@ -418,7 +424,7 @@ function App() {
               <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={handleSendChatMessage} className="p-3 border-t border-zinc-900/50 flex gap-2 bg-jazzBlack/40 backdrop-blur-md mb-[56px] md:mb-0">
+            <form onSubmit={handleSendChatMessage} className="p-3 border-t border-zinc-900/50 flex gap-2 bg-jazzBlack/40 backdrop-blur-md">
               <input 
                 type="text" 
                 placeholder={user ? "공간에 어울리는 이야기를 나누어주세요..." : "로그인 후 대화에 참여해보세요."}
@@ -436,7 +442,7 @@ function App() {
         </div>
       </main>
 
-      {/* 📱 모바일 하단 전용 내비게이션 탭 바 */}
+      {/* 모바일 하단 탭 네비게이션 고정 */}
       <div className="md:hidden fixed bottom-[53px] left-0 right-0 h-[48px] bg-jazzCard/90 backdrop-blur-lg border-t border-zinc-900 flex z-30">
         <button 
           onClick={() => setActiveTab('archive')} 
@@ -458,8 +464,8 @@ function App() {
         </button>
       </div>
 
-      {/* 푸터 */}
-      <footer className="w-full py-4 border-t border-zinc-900/50 bg-jazzBlack/80 backdrop-blur-md z-20">
+      {/* 푸터 영역 고정 */}
+      <footer className="w-full py-4 border-t border-zinc-900/50 bg-jazzBlack/80 backdrop-blur-md z-20 fixed bottom-0 left-0 right-0 md:relative">
         <div className="max-w-xl mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <div className={`w-1.5 h-1.5 rounded-full ${isPlaying ? 'bg-jazzRed animate-pulse' : 'bg-zinc-700'}`}></div>
@@ -508,31 +514,11 @@ function App() {
                 <button onClick={() => setAuthMode('login')} className="text-xs text-zinc-500 hover:text-white transition block mx-auto pt-2">이전으로 돌아가기</button>
               </>
             )}
-            {authMode === 'findId' && (
-              <>
-                <h2 className="text-xs tracking-[0.25em] text-zinc-400 uppercase font-light">Account Identification</h2>
-                <div className="bg-zinc-950 p-4 rounded border border-zinc-900 text-left text-xs text-zinc-400 leading-relaxed font-light">
-                  {idFindGuide || "보안 정책상 가입 이메일의 로우 리스트 데이터는 임의 제공되지 않습니다."}
-                </div>
-                {!idFindGuide && <button onClick={() => setIdFindGuide("💡 수신 메일함에서 'phill-bar' 발송 기록을 찾아보세요.")} className="w-full bg-zinc-800 text-white text-xs py-2 rounded font-light hover:bg-zinc-700">식별 가이드 보기</button>}
-                <button onClick={() => setAuthMode('login')} className="text-xs text-zinc-500 hover:text-white transition block mx-auto pt-2">로그인 화면으로</button>
-              </>
-            )}
-            {authMode === 'findPw' && (
-              <>
-                <h2 className="text-xs tracking-[0.25em] text-zinc-400 uppercase font-light">Reset Password</h2>
-                <form onSubmit={handleResetPw} className="space-y-3 pt-1">
-                  <input type="email" placeholder="이메일 주소 입력" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none font-light" required />
-                  <button type="submit" className="w-full bg-zinc-800 text-zinc-300 hover:text-white text-xs py-2.5 rounded font-medium transition">변경 확인 이메일 전송</button>
-                </form>
-                <button onClick={() => setAuthMode('login')} className="text-xs text-zinc-500 hover:text-white transition block mx-auto pt-1">취소</button>
-              </>
-            )}
           </div>
         </div>
       )}
 
-      {/* 피드 상세 모달 (⚠️ 모바일 웹 호환성 최적화 패치) */}
+      {/* 피드 상세 내용 모달 */}
       {selectedFeed && (() => {
         const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
         const hasImg = images.length > 0;
@@ -545,48 +531,38 @@ function App() {
         ) : null;
 
         return (
-          <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
-            {/* 고정 h 대신 max-h-full 및 독립적 flex-col 구조 할당으로 모바일 스크롤 크래시 방지 */}
-            <div className="relative w-full max-w-[850px] max-h-[92vh] md:max-h-[85vh] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl">
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <div className="relative w-full max-w-[850px] max-h-[90vh] md:max-h-[85vh] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl">
               <button onClick={() => setSelectedFeed(null)} className="absolute top-3 right-3 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
               
-              {/* 이미지/오디오 세션 영역 */}
+              {/* 미디어 이미지 커버 슬라이드 본체 */}
               <div 
                 className="w-full md:w-1/2 aspect-square flex-shrink-0 bg-black relative overflow-hidden select-none group/imgContainer"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={() => handleTouchEnd(images.length)}
-                onMouseDown={handleTouchStart}
-                onMouseMove={handleTouchMove}
-                onMouseUp={() => handleTouchEnd(images.length)}
-                onMouseLeave={() => { isDragging.current = false; }}
               >
                 {HiddenAudio}
                 {hasImg ? (
-                  <img src={images[currentImgIdx]} className="w-full h-full object-cover pointer-events-none" />
+                  <img src={images[currentImgIdx]} className="w-full h-full object-cover pointer-events-none" alt="modal-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-xs text-zinc-600 font-mono">AUDIO SESSION</div>
                 )}
 
-                {/* 🧭 이전/다음 내비게이션 버튼 */}
                 {hasImg && images.length > 1 && (
                   <>
-                    {/* 이전 버튼 (모바일 가시성 확보를 위해 md:opacity-0 처리) */}
                     <button 
                       onClick={(e) => { e.stopPropagation(); prevImage(images.length); }} 
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-zinc-800 text-white md:opacity-0 group-hover/imgContainer:opacity-100 transition-opacity duration-300 flex items-center justify-center hover:bg-jazzRed border-none z-20"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-zinc-800 text-white flex items-center justify-center hover:bg-jazzRed border-none z-20"
                     >
                       <i className="fa-solid fa-chevron-left text-xs"></i>
                     </button>
-                    {/* 다음 버튼 */}
                     <button 
                       onClick={(e) => { e.stopPropagation(); nextImage(images.length); }} 
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-zinc-800 text-white md:opacity-0 group-hover/imgContainer:opacity-100 transition-opacity duration-300 flex items-center justify-center hover:bg-jazzRed border-none z-20"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-zinc-800 text-white flex items-center justify-center hover:bg-jazzRed border-none z-20"
                     >
                       <i className="fa-solid fa-chevron-right text-xs"></i>
                     </button>
-
-                    {/* ⚪ 하단 도트 인디케이터 */}
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-sm">
                       {images.map((_, idx) => (
                         <span 
@@ -600,18 +576,17 @@ function App() {
                 )}
               </div>
 
-              {/* 우측 정보 리스트 및 방명록 영역 */}
+              {/* 방명록 및 본문 디테일 영역 */}
               <div className="flex flex-col justify-between bg-jazzBlack p-4 md:p-6 w-full md:w-1/2 overflow-hidden flex-1 min-h-0">
                 <div className="flex flex-col gap-3 md:gap-4 flex-1 overflow-hidden min-h-0">
                   <div>
                     <h2 className="text-base md:text-xl font-light text-white truncate capitalize">{selectedFeed.title || 'Untitled'}</h2>
                     <p className="text-[11px] md:text-xs text-zinc-500 font-light mt-0.5">{selectedFeed.artistName || 'Phill Session'}</p>
                   </div>
-                  {/* 모바일 화면 높이 압착을 방지하기 위해 max-h 기반 유동 스크롤 제공 */}
-                  <div className="max-h-[80px] md:flex-1 overflow-y-auto pr-1 feed-scroll-container text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2 border-t border-b border-zinc-900/60">
+                  <div className="max-h-[100px] md:flex-1 overflow-y-auto pr-1 feed-scroll-container text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2 border-t border-b border-zinc-900/60">
                     {selectedFeed.bio || <span className="text-zinc-700 italic">소개가 없습니다.</span>}
                   </div>
-                  <div className="flex-1 min-h-[60px] md:h-24 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
+                  <div className="flex-1 min-h-[80px] md:h-24 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
                     {(selectedFeed.comments || []).map((c, i) => (
                       <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30">
                         <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
@@ -625,6 +600,7 @@ function App() {
                   <button type="submit" className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded font-medium hover:bg-red-700 transition">게시</button>
                 </form>
               </div>
+
             </div>
           </div>
         );
