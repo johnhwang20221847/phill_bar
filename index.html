@@ -85,7 +85,7 @@ function App() {
 
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); 
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'findId' | 'findPw'
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [idFindGuide, setIdFindGuide] = useState('');
@@ -270,7 +270,7 @@ function App() {
     signInWithEmailAndPassword(auth, authEmail, authPassword)
       .then((userCredential) => {
         if (!userCredential.user.emailVerified) {
-          alert("⚠️ 아직 이메일 인증이 완료되지 않은 계정입니다.");
+          alert("⚠️ 아직 이메일 인증이 완료되지 않은 계정입니다. 가입하신 이메일함을 확인해주세요.");
         } else {
           alert("재즈바 공간에 정상적으로 입장했습니다.");
         }
@@ -286,12 +286,23 @@ function App() {
       .then((userCredential) => {
         sendEmailVerification(userCredential.user)
           .then(() => {
-            alert("✉️ 인증 링크 메일이 발송되었습니다! 인증 후 로그인해 주세요.");
+            alert("✉️ 인증 링크 메일이 발송되었습니다! 메일 인증 완료 후 로그인해 주세요.");
             window.__auth.signOut(auth);
             setAuthMode('login');
           });
       })
       .catch(err => alert(`회원가입 실패: ${err.message}`));
+  };
+
+  const handleFindPassword = (e) => {
+    e.preventDefault();
+    const { auth, sendPasswordResetEmail } = window.__auth;
+    sendPasswordResetEmail(auth, authEmail)
+      .then(() => {
+        alert("✉️ 입력하신 이메일로 비밀번호 재설정 링크가 발송되었습니다.");
+        setAuthMode('login');
+      })
+      .catch(err => alert(`비밀번호 재설정 실패: 존재하지 않는 계정이거나 이메일을 다시 확인해주세요.`));
   };
 
   const handleSignOut = () => {
@@ -333,13 +344,12 @@ function App() {
       <main className="flex-1 w-full flex justify-center p-3 md:p-4 z-10 pb-32 md:pb-4">
         <div className="w-full max-w-[980px] bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 shadow-2xl flex flex-col md:flex-row md:h-[580px] overflow-hidden">
           
-          {/* 1. 게시판 영역 (데스크탑 높이 고정 및 flex 계층 구조 최적화) */}
+          {/* 1. 게시판 영역 */}
           <div className={`w-full md:w-[60%] p-4 flex flex-col h-full md:border-r border-zinc-900/60 ${activeTab === 'archive' ? 'block' : 'hidden md:flex'}`}>
             <div className="mb-3 px-1 flex items-center gap-2 flex-shrink-0">
               <span className="text-[10px] tracking-widest text-zinc-400 uppercase font-light">SOUND ARCHIVE</span>
             </div>
             
-            {/* 그리드 컨테이너: 데스크탑에서 남은 공간을 채우고 내부 스크롤 보장 */}
             <div className="flex-1 min-h-0 md:h-[calc(100%-2rem)]">
               <div className="grid grid-cols-2 gap-3 md:max-h-full md:overflow-y-auto pr-1 pb-4 feed-scroll-container">
                 {loading && (
@@ -466,11 +476,13 @@ function App() {
         </div>
       </footer>
 
-      {/* 인증 모달 */}
+      {/* 통합 인증 모달 (로그인/회원가입/ID찾기/PW찾기) */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="relative w-full max-w-sm bg-jazzCard rounded-2xl border border-zinc-800 p-8 shadow-2xl text-center space-y-5">
             <button onClick={closeAuthModal} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-sm"><i className="fa-times fa-solid"></i></button>
+            
+            {/* 1. 로그인 화면 */}
             {authMode === 'login' && (
               <>
                 <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Jazzbar Access Space</h2>
@@ -479,8 +491,60 @@ function App() {
                   <input type="password" placeholder="비밀번호" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
                   <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SIGN IN</button>
                 </form>
+                <div className="flex justify-center gap-4 text-[10px] text-zinc-500 pt-2">
+                  <button onClick={() => { setAuthMode('signup'); setAuthEmail(''); setAuthPassword(''); }} className="hover:text-zinc-300 transition">회원가입</button>
+                  <span className="text-zinc-800">|</span>
+                  <button onClick={() => setAuthMode('findId')} className="hover:text-zinc-300 transition">아이디 찾기</button>
+                  <span className="text-zinc-800">|</span>
+                  <button onClick={() => { setAuthMode('findPw'); setAuthEmail(''); }} className="hover:text-zinc-300 transition">비밀번호 찾기</button>
+                </div>
               </>
             )}
+
+            {/* 2. 회원가입 화면 */}
+            {authMode === 'signup' && (
+              <>
+                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Create Account</h2>
+                <form onSubmit={handleSignUp} className="space-y-3 pt-2">
+                  <input type="email" placeholder="사용할 이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                  <input type="password" placeholder="비밀번호 (6자리 이상)" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                  <button type="submit" className="w-full bg-jazzOrange text-black text-xs py-2.5 rounded font-medium hover:bg-amber-600 transition">REGISTER</button>
+                </form>
+                <div className="pt-2">
+                  <button onClick={() => { setAuthMode('login'); setAuthEmail(''); setAuthPassword(''); }} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition">이미 계정이 있으신가요? 로그인</button>
+                </div>
+              </>
+            )}
+
+            {/* 3. 아이디(이메일) 찾기 안내 화면 */}
+            {authMode === 'findId' && (
+              <>
+                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Find Email Account</h2>
+                <div className="text-left text-xs text-zinc-400 font-light leading-relaxed p-4 bg-zinc-950/50 rounded border border-zinc-900 space-y-2">
+                  <p>본 플랫폼은 별도의 개인정보를 수집하지 않으며, <strong className="text-jazzOrange">이메일 주소 자체를 고유 ID</strong>로 사용합니다.</p>
+                  <p>아이디 분실 시 사용하셨던 메일함(Gmail, Naver 등)에서 <span className="text-zinc-200">"PHILL"</span> 또는 <span className="text-zinc-200">"phill-bar"</span>에서 발송된 인증 메일이 있는지 확인해 주세요.</p>
+                </div>
+                <div className="pt-2">
+                  <button onClick={() => setAuthMode('login')} className="w-full bg-zinc-800 text-zinc-300 text-xs py-2 rounded hover:bg-zinc-700 transition">로그인 화면으로 돌아가기</button>
+                </div>
+              </>
+            )}
+
+            {/* 4. 비밀번호 재설정 화면 */}
+            {authMode === 'findPw' && (
+              <>
+                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Reset Password</h2>
+                <p className="text-[11px] text-zinc-500 font-light">가입하셨던 이메일 주소를 입력하시면<br/>비밀번호 재설정 링크를 보내드립니다.</p>
+                <form onSubmit={handleFindPassword} className="space-y-3 pt-2">
+                  <input type="email" placeholder="가입한 이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                  <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SEND RESET LINK</button>
+                </form>
+                <div className="pt-2">
+                  <button onClick={() => setAuthMode('login')} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition">로그인 화면으로 돌아가기</button>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}
