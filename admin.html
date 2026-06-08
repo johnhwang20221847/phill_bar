@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Phill Console | Admin Control</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght=300;400;500&family=Noto+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght=300;400;500&family=Noto+Sans+KR:wght=300;400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -13,7 +13,7 @@
 
 <script type="module" id="firebase-init">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -30,9 +30,10 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
 
+  // 💬 실시간 관리 감독을 위한 onSnapshot 추가 바인딩
   window.__firestore = {
     db, auth,
-    collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy
+    collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, onSnapshot
   };
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
@@ -42,12 +43,17 @@ tailwind.config = {
   theme: { extend: { colors: { jazzBlack: '#060202', jazzCard: '#120A0A', jazzRed: '#FF2A1A', jazzOrange: '#FFA100' } } }
 }
 </script>
+<style>
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #FF2A1A; border-radius: 4px; }
+.feed-scroll-container { scrollbar-width: thin; scrollbar-color: #FF2A1A transparent; }
+</style>
 </head>
-<body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen p-6 flex items-center justify-center">
-<div id="root" class="w-full max-w-4xl h-[90vh]"></div>
+<body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen p-4 md:p-6 flex items-center justify-center">
+<div id="root" class="w-full max-w-5xl h-[92vh]"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useRef } = React;
 
 const PASS_KEY = "phillbar77";
 
@@ -56,6 +62,7 @@ function AdminApp() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [passInput, setPassInput] = useState('');
   const [feeds, setFeeds] = useState([]);
+  const [chats, setChats] = useState([]); // 💬 실시간 라운지 채팅 모니터링 데이터 상태
   const [loading, setLoading] = useState(false);
 
   const [isEdit, setIsEdit] = useState(false);
@@ -66,10 +73,11 @@ function AdminApp() {
   const [members, setMembers] = useState('');
   const [bio, setBio] = useState('');
 
-  // 🛠️ 유튜브 연동 제어를 위한 상태 필드 추가
   const [youtubeId, setYoutubeId] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+
+  const chatEndRef = useRef(null);
 
   useEffect(() => {
     if (!firebaseReady) {
@@ -77,6 +85,7 @@ function AdminApp() {
     }
   }, []);
 
+  // 피드 로드 로직
   const loadFeeds = useCallback(async () => {
     if (!window.__firestore) return;
     const { db, collection, query, orderBy, getDocs } = window.__firestore;
@@ -92,9 +101,29 @@ function AdminApp() {
     setLoading(false);
   }, []);
 
+  // 💬 라운지 실시간 대화 추적 및 모니터링 스트림 연결
   useEffect(() => {
-    if (isAuthed && firebaseReady) loadFeeds();
+    if (isAuthed && firebaseReady) {
+      loadFeeds();
+
+      const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
+      const qChats = query(collection(db, 'chats'), orderBy('createdAt', 'asc'));
+      
+      const unsubChats = onSnapshot(qChats, (snapshot) => {
+        const messages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setChats(messages);
+      });
+
+      return () => { if (unsubChats) unsubChats(); };
+    }
   }, [isAuthed, firebaseReady]);
+
+  // 채팅 리스트 자동 스크롤 하단 동기화
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chats]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -111,7 +140,6 @@ function AdminApp() {
     const { db, collection, addDoc, doc, updateDoc, serverTimestamp } = window.__firestore;
     setLoading(true);
 
-    // 파이어베이스에 바인딩할 데이터 객체 구조 정제
     const feedPayload = {
       title,
       artistName: artist,
@@ -151,8 +179,6 @@ function AdminApp() {
     setImages(f.coverImage || '');
     setMembers(f.members || ''); 
     setBio(f.bio || '');
-    
-    // 수정 활성화 시 유튜브 관련 데이터 폼 로드
     setYoutubeId(f.youtubeId || '');
     setStartTime(f.startTime !== undefined ? f.startTime : '');
     setEndTime(f.endTime !== undefined ? f.endTime : '');
@@ -169,6 +195,30 @@ function AdminApp() {
       alert('삭제 실패: ' + e.message);
     }
     setLoading(false);
+  };
+
+  // 💬 단일 채팅 메시지 원격 삭제 컨트롤러
+  const handleDeleteChat = async (id) => {
+    if (!window.confirm('이 라운지 대화 메시지를 삭제처리 하겠습니까?')) return;
+    const { db, doc, deleteDoc } = window.__firestore;
+    try {
+      await deleteDoc(doc(db, 'chats', id));
+    } catch(e) {
+      alert('채팅 삭제 실패: ' + e.message);
+    }
+  };
+
+  // 💬 도배 방지용 전체 채팅창 청소 (Clear)
+  const handleClearAllChats = async () => {
+    if (!window.confirm('⚠️ 현재 라운지의 모든 실시간 대화 기록을 일괄 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    const { db, doc, deleteDoc } = window.__firestore;
+    try {
+      const promises = chats.map(msg => deleteDoc(doc(db, 'chats', msg.id)));
+      await Promise.all(promises);
+      alert('라운지 스트림 청소가 완료되었습니다.');
+    } catch(e) {
+      alert('일괄 삭제 실패: ' + e.message);
+    }
   };
 
   const clearForm = () => {
@@ -201,9 +251,10 @@ function AdminApp() {
   }
 
   return (
-    <div className="bg-jazzCard border border-zinc-800 rounded-2xl p-6 w-full h-full flex flex-col md:flex-row gap-6 shadow-2xl">
-      {/* 에디터 폼 */}
-      <form onSubmit={handleSave} className="w-full md:w-1/2 flex flex-col justify-between space-y-3 overflow-y-auto pr-2 feed-scroll-container">
+    <div className="bg-jazzCard border border-zinc-800/80 rounded-2xl p-6 w-full h-full flex flex-col lg:flex-row gap-6 shadow-2xl overflow-hidden">
+      
+      {/* 왼쪽 섹션: 사운드 아카이브 에디터 폼 */}
+      <form onSubmit={handleSave} className="w-full lg:w-[45%] flex flex-col justify-between space-y-3 overflow-y-auto pr-1 feed-scroll-container">
         <div className="space-y-3">
           <h2 className="text-xs text-jazzOrange font-medium tracking-widest uppercase">{isEdit ? "Modify Station" : "Publish New Feed"}</h2>
           <input type="text" placeholder="피드 제목 (공란 가능)" value={title} onChange={e=>setTitle(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-jazzRed" />
@@ -215,7 +266,6 @@ function AdminApp() {
             <textarea rows="2" placeholder={"https://example.com/image1.jpg\nhttps://example.com/image2.jpg"} value={images} onChange={e=>setImages(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-[11px] text-zinc-300 focus:outline-none"></textarea>
           </div>
 
-          {/* 🛠️ 추가됨: 유튜브 비디오 제어 콘솔 섹션 */}
           <div className="bg-zinc-950 p-3 rounded border border-zinc-900 space-y-2">
             <label className="text-[10px] text-jazzOrange block font-medium tracking-wide"><i className="fa-brands fa-youtube mr-1"></i> YouTube 무한 루프 하이라이트 설정</label>
             <input 
@@ -227,31 +277,17 @@ function AdminApp() {
             />
             <div className="flex gap-2">
               <div className="w-1/2 space-y-1">
-                <span className="text-[9px] text-zinc-500 pl-0.5">시작 시점 (초 단위 입력)</span>
-                <input 
-                  type="number" 
-                  placeholder="예: 30" 
-                  value={startTime} 
-                  onChange={e=>setStartTime(e.target.value)} 
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" 
-                  min="0"
-                />
+                <span className="text-[9px] text-zinc-500 pl-0.5">시작 시점 (초 단위)</span>
+                <input type="number" placeholder="예: 30" value={startTime} onChange={e=>setStartTime(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" min="0" />
               </div>
               <div className="w-1/2 space-y-1">
-                <span className="text-[9px] text-zinc-500 pl-0.5">종료 시점 (초 단위 입력)</span>
-                <input 
-                  type="number" 
-                  placeholder="예: 75" 
-                  value={endTime} 
-                  onChange={e=>setEndTime(e.target.value)} 
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" 
-                  min="0"
-                />
+                <span className="text-[9px] text-zinc-500 pl-0.5">종료 시점 (초 단위)</span>
+                <input type="number" placeholder="예: 75" value={endTime} onChange={e=>setEndTime(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" min="0" />
               </div>
             </div>
           </div>
 
-          <textarea rows="4" placeholder="설명 본문 텍스트란 입력 (공란 가능)" value={bio} onChange={e=>setBio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none"></textarea>
+          <textarea rows="3" placeholder="설명 본문 텍스트란 입력 (공란 가능)" value={bio} onChange={e=>setBio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none"></textarea>
         </div>
         
         <div className="flex gap-2 pt-2">
@@ -262,47 +298,86 @@ function AdminApp() {
         </div>
       </form>
 
-      {/* 실시간 보드 현황 */}
-      <div className="w-full md:w-1/2 flex flex-col border-t md:border-t-0 md:border-l border-zinc-900 md:pl-6 pt-4 md:pt-0 overflow-hidden">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs text-zinc-500 tracking-widest uppercase">Current Board Feeds ({feeds.length})</h2>
-          <button onClick={loadFeeds} disabled={loading} className="text-[10px] text-zinc-600 hover:text-jazzOrange transition">↻ 새로고침</button>
-        </div>
-        <div className="flex-1 overflow-y-auto space-y-2 feed-scroll-container">
-          {loading && feeds.length === 0 && <p className="text-xs text-zinc-600 text-center pt-10">불러오는 중...</p>}
-          {feeds.map(f => {
-            const imgs = f.coverImage ? f.coverImage.split('\n').filter(Boolean) : [];
-            const isVideoFeed = !!f.youtubeId;
-
-            return (
-              <div key={f.id} className="bg-zinc-950 p-3 rounded-lg flex items-center justify-between border border-zinc-900">
-                <div className="flex items-center space-x-3 overflow-hidden">
-                  {isVideoFeed ? (
-                    /* 유튜브 피드 전용 썸네일 표시 배지 */
-                    <div className="w-9 h-9 bg-red-950/40 border border-red-900/50 rounded flex flex-col items-center justify-center text-[7px] text-red-500 font-bold">
-                      <i className="fa-brands fa-youtube text-xs mb-0.5"></i>LIVE
+      {/* 오른쪽 섹션: 피드 현황 및 실시간 대화 연동 모니터 콘솔 (2분할 분배) */}
+      <div className="w-full lg:w-[55%] flex flex-col md:flex-row gap-4 border-t lg:border-t-0 lg:border-l border-zinc-900 lg:pl-4 overflow-hidden">
+        
+        {/* 우측 상단/좌측: 아카이브 피드 대시보드 */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-[10px] text-zinc-500 tracking-widest uppercase">Board Feeds ({feeds.length})</h2>
+            <button type="button" onClick={loadFeeds} className="text-[9px] text-zinc-600 hover:text-jazzOrange">↻ 갱신</button>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 feed-scroll-container">
+            {feeds.map(f => {
+              const imgs = f.coverImage ? f.coverImage.split('\n').filter(Boolean) : [];
+              const isVideoFeed = !!f.youtubeId;
+              return (
+                <div key={f.id} className="bg-zinc-950/80 p-2 rounded border border-zinc-900 flex items-center justify-between text-[11px]">
+                  <div className="flex items-center space-x-2 overflow-hidden w-[75%]">
+                    {isVideoFeed ? (
+                      <div className="w-7 h-7 bg-red-950/40 border border-red-900/40 rounded flex flex-col items-center justify-center text-[6px] text-red-500 font-bold shrink-0">
+                        <i className="fa-brands fa-youtube text-[10px]"></i>
+                      </div>
+                    ) : imgs.length > 0 ? (
+                      <img src={imgs[0]} className="w-7 h-7 object-cover rounded bg-zinc-900 shrink-0" />
+                    ) : (
+                      <div className="w-7 h-7 bg-zinc-900 border border-zinc-800 rounded flex items-center justify-center text-[7px] text-zinc-600 shrink-0">TXT</div>
+                    )}
+                    <div className="truncate">
+                      <h4 className="text-zinc-200 truncate capitalize font-light">{f.title || 'Untitled'}</h4>
+                      <p className="text-[9px] text-zinc-600 truncate">{f.artistName || 'No Name'}</p>
                     </div>
-                  ) : imgs.length > 0 ? (
-                    <img src={imgs[0]} className="w-9 h-9 object-cover rounded bg-zinc-900" />
-                  ) : (
-                    <div className="w-9 h-9 bg-zinc-900 border border-zinc-800 rounded flex items-center justify-center text-[8px] text-zinc-600">TEXT</div>
-                  )}
-                  <div className="overflow-hidden">
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="text-xs text-white font-medium truncate capitalize">{f.title || 'Untitled'}</h4>
-                      {isVideoFeed && <span className="text-[8px] bg-zinc-800 text-jazzOrange px-1 rounded font-mono">{f.startTime}s-{f.endTime}s</span>}
-                    </div>
-                    <p className="text-[10px] text-zinc-500 truncate">{f.artistName || 'No Name'}</p>
+                  </div>
+                  <div className="flex space-x-2 text-[10px] text-zinc-500 shrink-0">
+                    <button type="button" onClick={() => startEdit(f)} className="hover:text-jazzOrange">수정</button>
+                    <button type="button" onClick={() => handleDelete(f.id)} className="hover:text-jazzRed">삭제</button>
                   </div>
                 </div>
-                <div className="flex space-x-2 text-[11px] text-zinc-500">
-                  <button onClick={() => startEdit(f)} className="hover:text-jazzOrange transition">수정</button>
-                  <button onClick={() => handleDelete(f.id)} className="hover:text-jazzRed transition">삭제</button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
+
+        {/* 우측 하단/우측: 💬 라운지 실시간 스트림 백오피스 모니터 */}
+        <div className="flex-1 flex flex-col h-full bg-zinc-950/40 rounded-xl border border-zinc-900 p-3 overflow-hidden">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse"></span>
+              <h2 className="text-[10px] text-zinc-400 tracking-widest uppercase">Lounge Feed ({chats.length})</h2>
+            </div>
+            {chats.length > 0 && (
+              <button type="button" onClick={handleClearAllChats} className="text-[8px] bg-red-950 text-red-400 border border-red-900/60 px-1.5 py-0.5 rounded hover:bg-jazzRed hover:text-white transition">
+                <i className="fa-solid fa-trash-can mr-1"></i>전체 청소
+              </button>
+            )}
+          </div>
+          
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 feed-scroll-container">
+            {chats.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-zinc-700 text-[9px] tracking-widest text-center font-light">
+                NO RECENT TALKS.
+              </div>
+            ) : (
+              chats.map(msg => (
+                <div key={msg.id} className="text-[10px] leading-relaxed bg-zinc-950 p-2 rounded border border-zinc-900/50 relative group">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="font-medium text-jazzOrange truncate max-w-[70%]">{msg.user}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => handleDeleteChat(msg.id)} 
+                      className="opacity-0 group-hover:opacity-100 text-[9px] text-zinc-600 hover:text-jazzRed transition absolute top-1 right-2"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-zinc-400 font-light break-all pr-3">{msg.text}</p>
+                </div>
+              ))
+            )}
+            <div ref={chatEndRef} />
+          </div>
+        </div>
+
       </div>
     </div>
   );
