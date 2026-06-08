@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Phill | Online Jazzbar</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -79,7 +79,7 @@ function App() {
   const [commentInputs, setCommentInputs] = useState({});
   const audioRef = useRef(null);
 
-  // 👆 스와이프(터치/마우스 드래그) 지원을 위한 상태 및 Ref
+  // 👆 모바일 최적화 스와이프 변수 구조 개선
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const isDragging = useRef(false);
@@ -94,12 +94,10 @@ function App() {
   const [editingCommentIdx, setEditingCommentIdx] = useState(null);
   const [editingCommentText, setEditingCommentText] = useState('');
 
-  // 💬 라운지 대화방 상태 및 레퍼런스
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef(null);
 
-  // 📱 모바일 전용 탭 상태 ('archive' = 게시판, 'lounge' = 채팅)
   const [activeTab, setActiveTab] = useState('archive');
 
   useEffect(() => {
@@ -230,7 +228,6 @@ function App() {
     }
   };
 
-  // 🧭 모달 내 이미지 네비게이션 제어 함수
   const nextImage = (imagesCount) => {
     if (imagesCount <= 1) return;
     setCurrentImgIdx((prev) => (prev + 1) % imagesCount);
@@ -241,9 +238,10 @@ function App() {
     setCurrentImgIdx((prev) => (prev - 1 + imagesCount) % imagesCount);
   };
 
-  // 👆 스와이프 인터랙션 핸들러 (마우스 & 터치 통합 지원)
+  // 👆 모바일 브라우저 오작동을 최소화한 Touch 핸들러
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches ? e.touches[0].clientX : e.clientX;
+    touchEndX.current = touchStartX.current; // 초기화 에러 방지
     isDragging.current = true;
   };
 
@@ -256,19 +254,16 @@ function App() {
     if (!isDragging.current) return;
     isDragging.current = false;
     
-    const swipeThreshold = 50; // 스와이프로 인정할 최소 픽셀 거리
+    const swipeThreshold = 40; 
     const diffX = touchStartX.current - touchEndX.current;
 
     if (Math.abs(diffX) > swipeThreshold) {
       if (diffX > 0) {
-        nextImage(imagesCount); // 왼쪽으로 쓸기 -> 다음 이미지
+        nextImage(imagesCount);
       } else {
-        prevImage(imagesCount); // 오른쪽으로 쓸기 -> 이전 이미지
+        prevImage(imagesCount);
       }
     }
-    // 데이터 초기화
-    touchStartX.current = 0;
-    touchEndX.current = 0;
   };
 
   const handleSignIn = (e) => {
@@ -479,7 +474,7 @@ function App() {
         </div>
       </footer>
 
-      {/* 인증 모달 생략 (동일) */}
+      {/* 인증 모달 */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="relative w-full max-w-sm bg-jazzCard rounded-2xl border border-zinc-800 p-8 shadow-2xl text-center space-y-5">
@@ -537,7 +532,7 @@ function App() {
         </div>
       )}
 
-      {/* 피드 상세 모달 */}
+      {/* 피드 상세 모달 (⚠️ 모바일 웹 호환성 최적화 패치) */}
       {selectedFeed && (() => {
         const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
         const hasImg = images.length > 0;
@@ -550,13 +545,14 @@ function App() {
         ) : null;
 
         return (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 md:p-6">
-            <div className="relative w-full max-w-[850px] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl" style={{maxHeight:'90vh'}}>
-              <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 z-30 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/80 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
+            {/* 고정 h 대신 max-h-full 및 독립적 flex-col 구조 할당으로 모바일 스크롤 크래시 방지 */}
+            <div className="relative w-full max-w-[850px] max-h-[92vh] md:max-h-[85vh] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl">
+              <button onClick={() => setSelectedFeed(null)} className="absolute top-3 right-3 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
               
               {/* 이미지/오디오 세션 영역 */}
               <div 
-                className="w-full md:w-1/2 aspect-square flex-shrink-0 bg-black relative overflow-hidden select-none touch-none group/imgContainer"
+                className="w-full md:w-1/2 aspect-square flex-shrink-0 bg-black relative overflow-hidden select-none group/imgContainer"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={() => handleTouchEnd(images.length)}
@@ -572,26 +568,26 @@ function App() {
                   <div className="w-full h-full flex items-center justify-center text-xs text-zinc-600 font-mono">AUDIO SESSION</div>
                 )}
 
-                {/* 🧭 이전/다음 내비게이션 버튼 (이미지가 2장 이상일 때 노출) */}
+                {/* 🧭 이전/다음 내비게이션 버튼 */}
                 {hasImg && images.length > 1 && (
                   <>
-                    {/* 이전 버튼 */}
+                    {/* 이전 버튼 (모바일 가시성 확보를 위해 md:opacity-0 처리) */}
                     <button 
                       onClick={(e) => { e.stopPropagation(); prevImage(images.length); }} 
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 border border-zinc-800 text-white md:opacity-0 group-hover/imgContainer:opacity-100 transition-opacity duration-300 flex items-center justify-center hover:bg-jazzRed border-none z-20"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-zinc-800 text-white md:opacity-0 group-hover/imgContainer:opacity-100 transition-opacity duration-300 flex items-center justify-center hover:bg-jazzRed border-none z-20"
                     >
                       <i className="fa-solid fa-chevron-left text-xs"></i>
                     </button>
                     {/* 다음 버튼 */}
                     <button 
                       onClick={(e) => { e.stopPropagation(); nextImage(images.length); }} 
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 border border-zinc-800 text-white md:opacity-0 group-hover/imgContainer:opacity-100 transition-opacity duration-300 flex items-center justify-center hover:bg-jazzRed border-none z-20"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-zinc-800 text-white md:opacity-0 group-hover/imgContainer:opacity-100 transition-opacity duration-300 flex items-center justify-center hover:bg-jazzRed border-none z-20"
                     >
                       <i className="fa-solid fa-chevron-right text-xs"></i>
                     </button>
 
                     {/* ⚪ 하단 도트 인디케이터 */}
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/30 px-2 py-1 rounded-full backdrop-blur-sm">
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-sm">
                       {images.map((_, idx) => (
                         <span 
                           key={idx} 
@@ -605,16 +601,17 @@ function App() {
               </div>
 
               {/* 우측 정보 리스트 및 방명록 영역 */}
-              <div className="flex flex-col justify-between bg-jazzBlack p-4 md:p-6 w-full md:w-1/2 overflow-hidden">
-                <div className="flex flex-col gap-3 md:gap-4 flex-1 overflow-hidden">
+              <div className="flex flex-col justify-between bg-jazzBlack p-4 md:p-6 w-full md:w-1/2 overflow-hidden flex-1 min-h-0">
+                <div className="flex flex-col gap-3 md:gap-4 flex-1 overflow-hidden min-h-0">
                   <div>
-                    <h2 className="text-lg md:text-xl font-light text-white truncate capitalize">{selectedFeed.title || 'Untitled'}</h2>
-                    <p className="text-xs text-zinc-500 font-light mt-0.5">{selectedFeed.artistName || 'Phill Session'}</p>
+                    <h2 className="text-base md:text-xl font-light text-white truncate capitalize">{selectedFeed.title || 'Untitled'}</h2>
+                    <p className="text-[11px] md:text-xs text-zinc-500 font-light mt-0.5">{selectedFeed.artistName || 'Phill Session'}</p>
                   </div>
-                  <div className="flex-1 overflow-y-auto pr-1 feed-scroll-container text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2 border-t border-b border-zinc-900/60">
+                  {/* 모바일 화면 높이 압착을 방지하기 위해 max-h 기반 유동 스크롤 제공 */}
+                  <div className="max-h-[80px] md:flex-1 overflow-y-auto pr-1 feed-scroll-container text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2 border-t border-b border-zinc-900/60">
                     {selectedFeed.bio || <span className="text-zinc-700 italic">소개가 없습니다.</span>}
                   </div>
-                  <div className="h-20 md:h-24 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
+                  <div className="flex-1 min-h-[60px] md:h-24 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
                     {(selectedFeed.comments || []).map((c, i) => (
                       <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30">
                         <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
@@ -623,7 +620,7 @@ function App() {
                     ))}
                   </div>
                 </div>
-                <form onSubmit={(e) => handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-3 border-t border-zinc-900/60">
+                <form onSubmit={(e) => handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-3 border-t border-zinc-900/60 mt-2">
                   <input type="text" placeholder="방명록을 남겨주세요..." value={commentInputs[selectedFeed.id] || ""} onChange={(e) => setCommentInputs({ ...commentInputs, [selectedFeed.id]: e.target.value })} className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzRed" />
                   <button type="submit" className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded font-medium hover:bg-red-700 transition">게시</button>
                 </form>
