@@ -15,7 +15,8 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  // 💬 실시간 채팅 등록을 위해 addDoc을 추가했습니다.
+  import { getFirestore, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -32,7 +33,8 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  window.__firestore = { db, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion };
+  // 💬 전역 설정에도 addDoc을 함께 바인딩합니다.
+  window.__firestore = { db, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion, addDoc };
   window.__auth = { auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail };
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
@@ -52,7 +54,6 @@ tailwind.config = {
 ::-webkit-scrollbar-thumb { background: #FF2A1A; border-radius: 4px; }
 .feed-scroll-container { scrollbar-width: thin; scrollbar-color: #FF2A1A transparent; }
 
-/* 유튜브 iframe 완전히 숨기되 오디오는 재생되도록 */
 .yt-hidden-player {
   position: absolute;
   width: 1px;
@@ -90,15 +91,33 @@ function App() {
   const [editingCommentIdx, setEditingCommentIdx] = useState(null);
   const [editingCommentText, setEditingCommentText] = useState('');
 
+  // 💬 라운지 실시간 채팅방 상태 추가
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const chatEndRef = useRef(null);
+
   useEffect(() => {
+    let unsubFeeds;
+    let unsubChats;
+
     const initFirestore = () => {
       const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
-      const q = query(collection(db, 'feeds'), orderBy('createdAt', 'desc'));
-      return onSnapshot(q, (snapshot) => {
+      
+      // 1. 기존 게시글 피드 연결
+      const qFeeds = query(collection(db, 'feeds'), orderBy('createdAt', 'desc'));
+      unsubFeeds = onSnapshot(qFeeds, (snapshot) => {
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setFeeds(data);
         setLoading(false);
         setSelectedFeed(prev => prev ? (data.find(f => f.id === prev.id) || null) : null);
+      });
+
+      // 2. 💬 라운지 실시간 채팅 연결 (chats 컬렉션 자동 추적)
+      const qChats = query(collection(db, 'chats'), orderBy('createdAt', 'asc'));
+      unsubChats = onSnapshot(qChats, (snapshot) => {
+        const messages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setChatMessages(messages);
       });
     };
 
@@ -109,24 +128,63 @@ function App() {
       });
     };
 
-    let unsubFirestore;
     let unsubAuth;
 
     if (window.__firestore && window.__auth) {
-      unsubFirestore = initFirestore();
+      initFirestore();
       unsubAuth = initAuth();
     } else {
       window.addEventListener('firebase-ready', () => {
-        unsubFirestore = initFirestore();
+        initFirestore();
         unsubAuth = initAuth();
       }, { once: true });
     }
 
     return () => {
-      if (unsubFirestore) unsubFirestore();
+      if (unsubFeeds) unsubFeeds();
+      if (unsubChats) unsubChats();
       if (unsubAuth) unsubAuth();
     };
   }, []);
+
+  // 💬 새 메시지가 도착하거나 채팅창을 열 때 자동으로 스크롤 맨 아래로 이동
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, isChatOpen]);
+
+  // 💬 실시간 채팅 전송 함수
+  const handleSendChatMessage = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert("라운지 채팅에 참여하려면 먼저 로그인해 주세요.");
+      setAuthMode('login');
+      setShowAuthModal(true);
+      return;
+    }
+    if (!user.emailVerified) {
+      alert("이메일 인증 링크를 완료한 계정만 라운지 대화 참여가 가능합니다.");
+      return;
+    }
+
+    const text = chatInput.trim();
+    if (!text) return;
+
+    const { db, collection, addDoc } = window.__firestore;
+    const username = user.email.split('@')[0];
+
+    try {
+      await addDoc(collection(db, 'chats'), {
+        user: username,
+        text: text,
+        createdAt: Date.now()
+      });
+      setChatInput('');
+    } catch (err) {
+      console.error("채팅 메시지 전송 실패:", err);
+    }
+  };
 
   const togglePlay = () => {
     if (isPlaying) audioRef.current.pause();
@@ -312,7 +370,6 @@ function App() {
 
               return (
                 <div key={feed.id} onClick={() => openFeed(feed)} className="group relative aspect-square bg-zinc-950 rounded-md overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 transition duration-300">
-                  {/* 피드 썸네일: 이미지 우선, 없으면 유튜브 표시, 그것도 없으면 텍스트 */}
                   {hasImg ? (
                     <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
                   ) : hasVideo ? (
@@ -326,7 +383,6 @@ function App() {
                     </div>
                   )}
                   {imgList.length > 1 && <div className="absolute top-2 right-2 text-[10px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
-                  {/* 유튜브+이미지 동시 존재 시 뮤직 아이콘 배지 */}
                   {hasImg && hasVideo && (
                     <div className="absolute top-2 left-2 text-[10px] bg-black/60 px-1.5 py-0.5 rounded text-jazzRed">
                       <i className="fa-brands fa-youtube"></i>
@@ -358,12 +414,70 @@ function App() {
               {user ? `Audience: ${user.email.split('@')[0]}` : isPlaying ? "Streaming Radio Session..." : "Radio Muted"}
             </p>
           </div>
-          <button onClick={togglePlay} className="text-[11px] tracking-[0.2em] text-zinc-400 hover:text-white transition flex items-center gap-2">
-            <span>{isPlaying ? 'TURN OFF' : 'LISTEN NOW'}</span>
-            <span className="text-xs">{isPlaying ? '■' : '▶'}</span>
-          </button>
+          <div className="flex items-center space-x-5">
+            {/* 💬 LOUNGE CHAT 토글 버튼 추가 */}
+            <button onClick={() => setIsChatOpen(!isChatOpen)} className="text-[11px] tracking-[0.2em] text-jazzOrange hover:text-white transition flex items-center gap-1.5 font-medium">
+              <span>LOUNGE CHAT</span>
+              <i className={`fa-solid fa-xs ${isChatOpen ? 'fa-chevron-down' : 'fa-comment-dots animate-pulse'}`}></i>
+            </button>
+            <button onClick={togglePlay} className="text-[11px] tracking-[0.2em] text-zinc-400 hover:text-white transition flex items-center gap-2">
+              <span>{isPlaying ? 'TURN OFF' : 'LISTEN NOW'}</span>
+              <span className="text-xs">{isPlaying ? '■' : '▶'}</span>
+            </button>
+          </div>
         </div>
       </footer>
+
+      {/* 💬 실시간 슬라이드인 라운지 채팅창 */}
+      <div className={`fixed top-[77px] bottom-[65px] right-0 w-full sm:w-[360px] bg-jazzCard/90 backdrop-blur-2xl border-l border-zinc-900/60 z-30 flex flex-col justify-between transition-transform duration-300 ease-in-out ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        {/* 헤더 */}
+        <div className="p-4 border-b border-zinc-900/50 flex items-center justify-between bg-black/20">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-[10px] tracking-widest text-zinc-300 uppercase font-light">Lounge Live Stream</span>
+          </div>
+          <button onClick={() => setIsChatOpen(false)} className="text-zinc-500 hover:text-white text-xs px-1"><i className="fa-solid fa-xmark"></i></button>
+        </div>
+
+        {/* 대화 기록 리스트 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3.5 feed-scroll-container">
+          {chatMessages.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-zinc-600 text-[10px] font-light tracking-widest text-center">
+              BAR LOUNGE IS QUIET.<br/>LEAVE A NOTE FIRST.
+            </div>
+          ) : (
+            chatMessages.map((msg) => (
+              <div key={msg.id} className="text-[11px] leading-relaxed bg-zinc-950/20 p-2 rounded border border-zinc-900/10">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className={`font-medium ${msg.user === currentUsername ? 'text-jazzRed' : 'text-jazzOrange'}`}>
+                    {msg.user}
+                  </span>
+                  <span className="text-[8px] text-zinc-600 font-light">
+                    {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                  </span>
+                </div>
+                <span className="text-zinc-300 font-light break-all">{msg.text}</span>
+              </div>
+            ))
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* 메시지 입력 폼 */}
+        <form onSubmit={handleSendChatMessage} className="p-3 border-t border-zinc-900/50 flex gap-2 bg-jazzBlack/50">
+          <input 
+            type="text" 
+            placeholder={user ? "음악과 공간에 어울리는 이야기를..." : "로그인 후 라운지에 입장해 보세요."}
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            disabled={!user}
+            className="flex-grow bg-zinc-950 border border-zinc-800/80 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzRed font-light disabled:opacity-40"
+          />
+          <button type="submit" disabled={!user} className="bg-jazzRed text-white text-xs px-3.5 py-2 rounded font-medium hover:bg-red-700 transition disabled:opacity-40">
+            <i className="fa-solid fa-paper-plane text-[10px]"></i>
+          </button>
+        </form>
+      </div>
 
       {/* 인증 모달 */}
       {showAuthModal && (
@@ -423,13 +537,12 @@ function App() {
         </div>
       )}
 
-      {/* 피드 상세 모달 — 모바일/데스크탑 레이아웃 완전 분리 */}
+      {/* 피드 상세 모달 */}
       {selectedFeed && (() => {
         const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
         const hasImg = images.length > 0;
         const hasVideo = !!selectedFeed.youtubeId;
 
-        /* 공용: 숨김 유튜브 오디오 플레이어 */
         const HiddenAudio = hasVideo ? (
           <div className="yt-hidden-player">
             <iframe
@@ -441,7 +554,6 @@ function App() {
           </div>
         ) : null;
 
-        /* 공용: 이미지 슬라이더 */
         const ImageSlider = (
           <div className="relative w-full h-full flex items-center justify-center bg-black">
             {HiddenAudio}
@@ -481,7 +593,6 @@ function App() {
           </div>
         );
 
-        /* 공용: 댓글 리스트 */
         const CommentList = (
           <div className="space-y-2 text-[11px]">
             {(selectedFeed.comments || []).map((c, i) => {
@@ -516,7 +627,6 @@ function App() {
           </div>
         );
 
-        /* 공용: 댓글 입력 폼 */
         const CommentForm = (
           <form onSubmit={(e) => handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-3 border-t border-zinc-900/60">
             <input type="text"
@@ -530,21 +640,15 @@ function App() {
 
         return (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50">
-
-            {/* ── 모바일 레이아웃 (md 미만): 전체화면 스크롤 시트 ── */}
+            {/* 모바일 레이아웃 */}
             <div className="flex flex-col h-full md:hidden overflow-y-auto feed-scroll-container">
-              {/* 상단 이미지 — 화면 너비 100%, 1:1 비율 고정 */}
               <div className="w-full flex-shrink-0" style={{aspectRatio:'1/1'}}>
                 {ImageSlider}
               </div>
-
-              {/* 닫기 버튼: 이미지 우상단 위에 고정 */}
               <button onClick={() => setSelectedFeed(null)}
                 className="fixed top-3 right-3 z-[60] w-8 h-8 flex items-center justify-center rounded-full bg-black/70 border border-zinc-700 text-white backdrop-blur-sm">
                 <i className="fa-times fa-solid text-xs"></i>
               </button>
-
-              {/* 정보 + 댓글 영역: 이미지 아래 자연스럽게 이어짐 */}
               <div className="flex-1 bg-jazzBlack px-5 pt-5 pb-8 space-y-4">
                 <div>
                   <h2 className="text-lg font-light text-white tracking-wide capitalize">{selectedFeed.title || 'Untitled'}</h2>
@@ -563,20 +667,16 @@ function App() {
               </div>
             </div>
 
-            {/* ── 데스크탑 레이아웃 (md 이상): 좌우 분할 카드 ── */}
+            {/* 데스크탑 레이아웃 */}
             <div className="hidden md:flex items-center justify-center h-full p-6">
               <div className="relative w-full max-w-[850px] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-row shadow-2xl" style={{maxHeight:'90vh'}}>
                 <button onClick={() => setSelectedFeed(null)}
                   className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/80 border border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
                   <i className="fa-times fa-solid text-xs"></i>
                 </button>
-
-                {/* 좌: 이미지 */}
                 <div className="w-1/2 flex-shrink-0" style={{aspectRatio:'1/1'}}>
                   {ImageSlider}
                 </div>
-
-                {/* 우: 정보 + 댓글 */}
                 <div className="flex flex-col justify-between bg-jazzBlack p-6 w-1/2 overflow-hidden">
                   <div className="flex flex-col gap-4 flex-1 overflow-hidden">
                     <div>
@@ -596,7 +696,6 @@ function App() {
                 </div>
               </div>
             </div>
-
           </div>
         );
       })()}
