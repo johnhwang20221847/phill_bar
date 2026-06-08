@@ -79,6 +79,11 @@ function App() {
   const [commentInputs, setCommentInputs] = useState({});
   const audioRef = useRef(null);
 
+  // 👆 스와이프(터치/마우스 드래그) 지원을 위한 상태 및 Ref
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const isDragging = useRef(false);
+
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login'); 
@@ -149,7 +154,7 @@ function App() {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [chatMessages, activeTab]); // 탭 전환 시에도 스크롤 하단 고정
+  }, [chatMessages, activeTab]); 
 
   const handleSendChatMessage = async (e) => {
     e.preventDefault();
@@ -223,6 +228,47 @@ function App() {
     } catch(err) {
       console.error(err);
     }
+  };
+
+  // 🧭 모달 내 이미지 네비게이션 제어 함수
+  const nextImage = (imagesCount) => {
+    if (imagesCount <= 1) return;
+    setCurrentImgIdx((prev) => (prev + 1) % imagesCount);
+  };
+
+  const prevImage = (imagesCount) => {
+    if (imagesCount <= 1) return;
+    setCurrentImgIdx((prev) => (prev - 1 + imagesCount) % imagesCount);
+  };
+
+  // 👆 스와이프 인터랙션 핸들러 (마우스 & 터치 통합 지원)
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches ? e.touches[0].clientX : e.clientX;
+    isDragging.current = true;
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging.current) return;
+    touchEndX.current = e.touches ? e.touches[0].clientX : e.clientX;
+  };
+
+  const handleTouchEnd = (imagesCount) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    
+    const swipeThreshold = 50; // 스와이프로 인정할 최소 픽셀 거리
+    const diffX = touchStartX.current - touchEndX.current;
+
+    if (Math.abs(diffX) > swipeThreshold) {
+      if (diffX > 0) {
+        nextImage(imagesCount); // 왼쪽으로 쓸기 -> 다음 이미지
+      } else {
+        prevImage(imagesCount); // 오른쪽으로 쓸기 -> 이전 이미지
+      }
+    }
+    // 데이터 초기화
+    touchStartX.current = 0;
+    touchEndX.current = 0;
   };
 
   const handleSignIn = (e) => {
@@ -303,7 +349,7 @@ function App() {
       <main className="flex-1 flex items-center justify-center p-3 md:p-4 z-10 overflow-hidden">
         <div className="w-full max-w-[980px] h-full md:h-[580px] bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 shadow-2xl flex flex-col md:flex-row overflow-hidden">
           
-          {/* 1. 게시판 영역 (데스크탑에선 항상 노출, 모바일에선 activeTab이 'archive'일 때만 노출) */}
+          {/* 1. 게시판 영역 */}
           <div className={`w-full md:w-[60%] h-full p-4 flex flex-col md:border-r border-zinc-900/60 ${activeTab === 'archive' ? 'flex' : 'hidden md:flex'}`}>
             <div className="mb-2 px-1 flex items-center gap-2">
               <span className="text-[10px] tracking-widest text-zinc-400 uppercase font-light">SOUND ARCHIVE</span>
@@ -345,7 +391,7 @@ function App() {
             </div>
           </div>
 
-          {/* 2. 실시간 라운지 채팅 영역 (데스크탑에선 항상 노출, 모바일에선 activeTab이 'lounge'일 때만 노출) */}
+          {/* 2. 실시간 라운지 채팅 영역 */}
           <div className={`w-full md:w-[40%] h-full flex flex-col justify-between bg-black/15 ${activeTab === 'lounge' ? 'flex' : 'hidden md:flex'}`}>
             <div className="p-4 border-b border-zinc-900/50 flex items-center justify-between bg-black/20">
               <div className="flex items-center gap-2">
@@ -395,7 +441,7 @@ function App() {
         </div>
       </main>
 
-      {/* 📱 모바일 하단 전용 내비게이션 탭 바 (데스크탑 hidden, 모바일 flex) */}
+      {/* 📱 모바일 하단 전용 내비게이션 탭 바 */}
       <div className="md:hidden fixed bottom-[53px] left-0 right-0 h-[48px] bg-jazzCard/90 backdrop-blur-lg border-t border-zinc-900 flex z-30">
         <button 
           onClick={() => setActiveTab('archive')} 
@@ -433,7 +479,7 @@ function App() {
         </div>
       </footer>
 
-      {/* 인증 모달 */}
+      {/* 인증 모달 생략 (동일) */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="relative w-full max-w-sm bg-jazzCard rounded-2xl border border-zinc-800 p-8 shadow-2xl text-center space-y-5">
@@ -506,11 +552,59 @@ function App() {
         return (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 md:p-6">
             <div className="relative w-full max-w-[850px] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl" style={{maxHeight:'90vh'}}>
-              <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/80 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
-              <div className="w-full md:w-1/2 aspect-square flex-shrink-0 bg-black relative">
+              <button onClick={() => setSelectedFeed(null)} className="absolute top-4 right-4 z-30 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/80 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
+              
+              {/* 이미지/오디오 세션 영역 */}
+              <div 
+                className="w-full md:w-1/2 aspect-square flex-shrink-0 bg-black relative overflow-hidden select-none touch-none group/imgContainer"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={() => handleTouchEnd(images.length)}
+                onMouseDown={handleTouchStart}
+                onMouseMove={handleTouchMove}
+                onMouseUp={() => handleTouchEnd(images.length)}
+                onMouseLeave={() => { isDragging.current = false; }}
+              >
                 {HiddenAudio}
-                {hasImg ? <img src={images[currentImgIdx]} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs text-zinc-600 font-mono">AUDIO SESSION</div>}
+                {hasImg ? (
+                  <img src={images[currentImgIdx]} className="w-full h-full object-cover pointer-events-none" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-zinc-600 font-mono">AUDIO SESSION</div>
+                )}
+
+                {/* 🧭 이전/다음 내비게이션 버튼 (이미지가 2장 이상일 때 노출) */}
+                {hasImg && images.length > 1 && (
+                  <>
+                    {/* 이전 버튼 */}
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); prevImage(images.length); }} 
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 border border-zinc-800 text-white md:opacity-0 group-hover/imgContainer:opacity-100 transition-opacity duration-300 flex items-center justify-center hover:bg-jazzRed border-none z-20"
+                    >
+                      <i className="fa-solid fa-chevron-left text-xs"></i>
+                    </button>
+                    {/* 다음 버튼 */}
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); nextImage(images.length); }} 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 border border-zinc-800 text-white md:opacity-0 group-hover/imgContainer:opacity-100 transition-opacity duration-300 flex items-center justify-center hover:bg-jazzRed border-none z-20"
+                    >
+                      <i className="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+
+                    {/* ⚪ 하단 도트 인디케이터 */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/30 px-2 py-1 rounded-full backdrop-blur-sm">
+                      {images.map((_, idx) => (
+                        <span 
+                          key={idx} 
+                          onClick={(e) => { e.stopPropagation(); setCurrentImgIdx(idx); }}
+                          className={`w-1.5 h-1.5 rounded-full cursor-pointer transition-all duration-300 ${idx === currentImgIdx ? 'bg-jazzRed scale-110' : 'bg-zinc-500/60'}`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
+
+              {/* 우측 정보 리스트 및 방명록 영역 */}
               <div className="flex flex-col justify-between bg-jazzBlack p-4 md:p-6 w-full md:w-1/2 overflow-hidden">
                 <div className="flex flex-col gap-3 md:gap-4 flex-1 overflow-hidden">
                   <div>
@@ -530,8 +624,8 @@ function App() {
                   </div>
                 </div>
                 <form onSubmit={(e) => handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-3 border-t border-zinc-900/60">
-                  <input type="text" placeholder="방명록을 남겨주세요..." value={commentInputs[selectedFeed.id] || ""} onChange={(e) => setCommentInputs({ ...commentInputs, [selectedFeed.id]: e.target.value })} className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none" />
-                  <button type="submit" className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded">게시</button>
+                  <input type="text" placeholder="방명록을 남겨주세요..." value={commentInputs[selectedFeed.id] || ""} onChange={(e) => setCommentInputs({ ...commentInputs, [selectedFeed.id]: e.target.value })} className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzRed" />
+                  <button type="submit" className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded font-medium hover:bg-red-700 transition">게시</button>
                 </form>
               </div>
             </div>
