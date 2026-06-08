@@ -338,7 +338,7 @@ function App() {
         </div>
       </header>
 
-      {/* 메인 영역 (모바일 스크롤 확보를 위해 pb-32 패딩 추가) */}
+      {/* 메인 영역 */}
       <main className="flex-1 w-full flex justify-center p-3 md:p-4 z-10 pb-32 md:pb-4">
         <div className="w-full max-w-[980px] bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 shadow-2xl flex flex-col md:flex-row md:h-[580px] overflow-hidden">
           
@@ -348,14 +348,7 @@ function App() {
               <span className="text-[10px] tracking-widest text-zinc-400 uppercase font-light">SOUND ARCHIVE</span>
             </div>
             
-            {/* 그리드 레이아웃: 모바일에서는 막힘없이 확장되며 데스크톱에선 내부 스크롤 */}
             <div className="grid grid-cols-2 gap-3 rounded-lg md:overflow-y-auto md:max-h-[500px] pr-1 feed-scroll-container">
-              {loading && (
-                <div className="col-span-2 h-full flex flex-col items-center justify-center text-zinc-600 text-xs font-light tracking-widest gap-2 py-32">
-                  <i className="fa-solid fa-xs fa-circle-nodes animate-pulse"></i>
-                  <span>LOADING SOUNDS...</span>
-                </div>
-              )}
               {!loading && feeds.map((feed) => {
                 const imgList = feed.coverImage ? feed.coverImage.split('\n').filter(Boolean) : [];
                 const hasImg = imgList.length > 0;
@@ -381,7 +374,6 @@ function App() {
                     )}
                     {imgList.length > 1 && <div className="absolute top-2 right-2 text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
                     
-                    {/* 모바일 화면 배려 그라데이션 타이틀 상시 활성화 조치 */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-3 opacity-95 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
                       <h3 className="text-[11px] text-white truncate font-medium capitalize">{feed.title || 'Untitled'}</h3>
                       <p className="text-[9px] text-jazzOrange truncate font-light mt-0.5">{feed.artistName || 'Phill Session'}</p>
@@ -402,25 +394,19 @@ function App() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3 feed-scroll-container">
-              {chatMessages.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-zinc-600 text-[10px] font-light tracking-widest text-center">
-                  BAR LOUNGE IS QUIET.<br/>LEAVE A NOTE FIRST.
-                </div>
-              ) : (
-                chatMessages.map((msg) => (
-                  <div key={msg.id} className="text-[11px] leading-relaxed bg-zinc-950/30 p-2 rounded border border-zinc-900/10">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className={`font-medium ${msg.user === currentUsername ? 'text-jazzRed' : 'text-jazzOrange'}`}>
-                        {msg.user}
-                      </span>
-                      <span className="text-[8px] text-zinc-600 font-light">
-                        {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
-                      </span>
-                    </div>
-                    <span className="text-zinc-300 font-light break-all">{msg.text}</span>
+              {chatMessages.map((msg) => (
+                <div key={msg.id} className="text-[11px] leading-relaxed bg-zinc-950/30 p-2 rounded border border-zinc-900/10">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className={`font-medium ${msg.user === currentUsername ? 'text-jazzRed' : 'text-jazzOrange'}`}>
+                      {msg.user}
+                    </span>
+                    <span className="text-[8px] text-zinc-600 font-light">
+                      {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                    </span>
                   </div>
-                ))
-              )}
+                  <span className="text-zinc-300 font-light break-all">{msg.text}</span>
+                </div>
+              ))}
               <div ref={chatEndRef} />
             </div>
 
@@ -444,18 +430,12 @@ function App() {
 
       {/* 모바일 하단 탭 네비게이션 고정 */}
       <div className="md:hidden fixed bottom-[53px] left-0 right-0 h-[48px] bg-jazzCard/90 backdrop-blur-lg border-t border-zinc-900 flex z-30">
-        <button 
-          onClick={() => setActiveTab('archive')} 
-          className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] tracking-widest uppercase transition ${activeTab === 'archive' ? 'text-jazzRed font-medium' : 'text-zinc-600'}`}
-        >
+        <button onClick={() => setActiveTab('archive')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] tracking-widest uppercase transition ${activeTab === 'archive' ? 'text-jazzRed font-medium' : 'text-zinc-600'}`}>
           <i className="fa-solid fa-compact-disc text-xs"></i>
           <span>Sounds</span>
         </button>
         <div className="w-[1px] h-6 bg-zinc-900 my-auto"></div>
-        <button 
-          onClick={() => setActiveTab('lounge')} 
-          className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] tracking-widest uppercase transition ${activeTab === 'lounge' ? 'text-jazzOrange font-medium' : 'text-zinc-600'}`}
-        >
+        <button onClick={() => setActiveTab('lounge')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] tracking-widest uppercase transition ${activeTab === 'lounge' ? 'text-jazzOrange font-medium' : 'text-zinc-600'}`}>
           <div className="relative">
             <i className="fa-solid fa-comments text-xs"></i>
             <span className="absolute -top-1 -right-2 w-1 h-1 rounded-full bg-jazzRed animate-pulse"></span>
@@ -493,32 +473,13 @@ function App() {
                   <input type="password" placeholder="비밀번호" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
                   <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SIGN IN</button>
                 </form>
-                <div className="flex justify-between text-[11px] text-zinc-600 px-1 pt-1">
-                  <button onClick={() => setAuthMode('register')} className="hover:text-zinc-400 transition">회원가입</button>
-                  <div className="space-x-2">
-                    <button onClick={() => { setAuthMode('findId'); setIdFindGuide(''); }} className="hover:text-zinc-400 transition">아이디 찾기</button>
-                    <span>|</span>
-                    <button onClick={() => setAuthMode('findPw')} className="hover:text-zinc-400 transition">비밀번호 재설정</button>
-                  </div>
-                </div>
-              </>
-            )}
-            {authMode === 'register' && (
-              <>
-                <h2 className="text-xs tracking-[0.25em] text-jazzOrange uppercase font-light">Create Guest Account</h2>
-                <form onSubmit={handleSignUp} className="space-y-3 pt-1">
-                  <input type="email" placeholder="이메일 주소 입력" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" required />
-                  <input type="password" placeholder="비밀번호 (6자 이상)" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" minLength="6" required />
-                  <button type="submit" className="w-full bg-jazzOrange text-black text-xs py-2.5 rounded font-semibold hover:bg-amber-600 transition">인증 이메일 승인 및 가입</button>
-                </form>
-                <button onClick={() => setAuthMode('login')} className="text-xs text-zinc-500 hover:text-white transition block mx-auto pt-2">이전으로 돌아가기</button>
               </>
             )}
           </div>
         </div>
       )}
 
-      {/* 피드 상세 내용 모달 */}
+      {/* 피드 상세 내용 모달 (수정 본문) */}
       {selectedFeed && (() => {
         const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
         const hasImg = images.length > 0;
@@ -532,7 +493,8 @@ function App() {
 
         return (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-            <div className="relative w-full max-w-[850px] max-h-[90vh] md:max-h-[85vh] bg-jazzCard rounded-2xl border border-zinc-800 overflow-hidden flex flex-col md:flex-row shadow-2xl">
+            {/* max-h 변경 및 모바일 스크롤 흐름(overflow-y-auto) 추가 */}
+            <div className="relative w-full max-w-[850px] h-full max-h-[85vh] md:max-h-[85vh] bg-jazzCard rounded-2xl border border-zinc-800 flex flex-col md:flex-row shadow-2xl overflow-y-auto md:overflow-hidden">
               <button onClick={() => setSelectedFeed(null)} className="absolute top-3 right-3 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
               
               {/* 미디어 이미지 커버 슬라이드 본체 */}
@@ -551,25 +513,15 @@ function App() {
 
                 {hasImg && images.length > 1 && (
                   <>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); prevImage(images.length); }} 
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-zinc-800 text-white flex items-center justify-center hover:bg-jazzRed border-none z-20"
-                    >
+                    <button onClick={(e) => { e.stopPropagation(); prevImage(images.length); }} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed border-none z-20">
                       <i className="fa-solid fa-chevron-left text-xs"></i>
                     </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); nextImage(images.length); }} 
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-zinc-800 text-white flex items-center justify-center hover:bg-jazzRed border-none z-20"
-                    >
+                    <button onClick={(e) => { e.stopPropagation(); nextImage(images.length); }} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed border-none z-20">
                       <i className="fa-solid fa-chevron-right text-xs"></i>
                     </button>
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-sm">
                       {images.map((_, idx) => (
-                        <span 
-                          key={idx} 
-                          onClick={(e) => { e.stopPropagation(); setCurrentImgIdx(idx); }}
-                          className={`w-1.5 h-1.5 rounded-full cursor-pointer transition-all duration-300 ${idx === currentImgIdx ? 'bg-jazzRed scale-110' : 'bg-zinc-500/60'}`}
-                        />
+                        <span key={idx} onClick={(e) => { e.stopPropagation(); setCurrentImgIdx(idx); }} className={`w-1.5 h-1.5 rounded-full cursor-pointer transition-all duration-300 ${idx === currentImgIdx ? 'bg-jazzRed scale-110' : 'bg-zinc-500/60'}`} />
                       ))}
                     </div>
                   </>
@@ -577,16 +529,19 @@ function App() {
               </div>
 
               {/* 방명록 및 본문 디테일 영역 */}
-              <div className="flex flex-col justify-between bg-jazzBlack p-4 md:p-6 w-full md:w-1/2 overflow-hidden flex-1 min-h-0">
-                <div className="flex flex-col gap-3 md:gap-4 flex-1 overflow-hidden min-h-0">
+              {/* 모바일 컨테이너 스크롤 및 레이아웃 밀림 방지 클래스 수정 (min-h-0 md:h-full) */}
+              <div className="flex flex-col justify-between bg-jazzBlack p-4 md:p-6 w-full md:w-1/2 overflow-hidden flex-1 min-h-0 md:h-full">
+                <div className="flex flex-col gap-3 md:gap-4 flex-1 overflow-y-auto md:overflow-hidden min-h-0">
                   <div>
                     <h2 className="text-base md:text-xl font-light text-white truncate capitalize">{selectedFeed.title || 'Untitled'}</h2>
                     <p className="text-[11px] md:text-xs text-zinc-500 font-light mt-0.5">{selectedFeed.artistName || 'Phill Session'}</p>
                   </div>
-                  <div className="max-h-[100px] md:flex-1 overflow-y-auto pr-1 feed-scroll-container text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2 border-t border-b border-zinc-900/60">
+                  {/* 설명(Bio) 영역 높이 조절: 모바일에서 max-h 해제하고 유동적으로 노출 */}
+                  <div className="w-full md:flex-1 text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2.5 border-t border-b border-zinc-900/60 font-sans">
                     {selectedFeed.bio || <span className="text-zinc-700 italic">소개가 없습니다.</span>}
                   </div>
-                  <div className="flex-1 min-h-[80px] md:h-24 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
+                  {/* 댓글 리스트 영역 */}
+                  <div className="flex-1 min-h-[120px] md:h-24 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
                     {(selectedFeed.comments || []).map((c, i) => (
                       <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30">
                         <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
