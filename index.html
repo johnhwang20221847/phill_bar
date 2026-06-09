@@ -5,13 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Phill | Online Jazzbar</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght=200;300;400;500&family=Noto+Sans+KR:wght=300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -28,79 +30,98 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  window.__firestore = { db, collection, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion, addDoc };
+  window.__firestore = { db, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion, addDoc };
   window.__auth = { auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail };
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
 
+<script>
+tailwind.config = {
+  theme: { extend: { colors: { jazzBlack: '#060202', jazzCard: '#120A0A', jazzRed: '#FF2A1A', jazzOrange: '#FFA100' }, fontFamily: { sans: ['Outfit', 'Noto Sans KR', 'sans-serif'] } } }
+}
+</script>
 <style>
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-thumb { background: #FF2A1A; border-radius: 4px; }
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #FF2A1A; border-radius: 4px; }
 .feed-scroll-container { scrollbar-width: thin; scrollbar-color: #FF2A1A transparent; }
 </style>
 </head>
-<body class="bg-black text-zinc-300 min-h-screen">
+<body class="bg-jazzBlack text-zinc-300">
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
-// [Music Pick 컴포넌트]
+// [새로 추가된 컴포넌트]
 function MusicPick() {
-    const [musicList, setMusicList] = useState([]);
-
-    useEffect(() => {
-        const { db, collection, onSnapshot, query, orderBy } = window.__firestore;
-        const q = query(collection(db, 'music_picks'), orderBy('createdAt', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            setMusicList(data);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    return (
-        <div className="p-6 h-full overflow-y-auto feed-scroll-container">
-            <h2 className="text-xs uppercase tracking-[0.2em] text-zinc-500 mb-6">Music Picks</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {musicList.map(item => (
-                    <div key={item.id} className="bg-zinc-900/50 p-4 rounded border border-zinc-800 hover:border-zinc-600 transition">
-                        <h3 className="text-sm font-medium text-white truncate">{item.title}</h3>
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{item.artist}</p>
-                        <div className="mt-3 flex items-center justify-between">
-                            <span className="text-[10px] text-yellow-500">★ {item.rating || 0}</span>
-                            <a href={item.youtubeUrl} target="_blank" className="text-[9px] underline text-zinc-600 hover:text-white">LISTEN</a>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-zinc-600 p-8 text-center">
+      <i className="fa-solid fa-record-vinyl text-4xl mb-4 text-jazzOrange/30"></i>
+      <h3 className="text-xs tracking-widest uppercase text-zinc-400">Music Pick</h3>
+      <p className="text-[10px] mt-2 font-light">준비 중인 큐레이션 공간입니다.</p>
+    </div>
+  );
 }
 
 function App() {
-    const [activeTab, setActiveTab] = useState('archive'); // 'archive', 'lounge', 'picks'
+  // 기존 상태들 유지
+  const [activeTab, setActiveTab] = useState('archive');
+  const [feeds, setFeeds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [user, setUser] = useState(null);
 
-    return (
-        <div className="min-h-screen flex flex-col">
-            {/* 헤더 */}
-            <header className="p-6 border-b border-zinc-900 flex justify-between items-center">
-                <h1 className="text-xl font-light tracking-[0.3em] text-white">PHILL</h1>
-                <nav className="flex gap-6 text-[10px] uppercase tracking-widest text-zinc-500">
-                    <button onClick={() => setActiveTab('archive')} className={activeTab === 'archive' ? 'text-white' : ''}>Archive</button>
-                    <button onClick={() => setActiveTab('lounge')} className={activeTab === 'lounge' ? 'text-white' : ''}>Lounge</button>
-                    <button onClick={() => setActiveTab('picks')} className={activeTab === 'picks' ? 'text-white' : ''}>Music Pick</button>
-                </nav>
-            </header>
+  // Firebase 초기화 후 데이터 가져오기 로직 (기존과 동일)
+  useEffect(() => {
+    if(window.__firestore) {
+      const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
+      const qFeeds = query(collection(db, 'feeds'), orderBy('createdAt', 'desc'));
+      onSnapshot(qFeeds, (s) => { setFeeds(s.docs.map(d=>({id:d.id, ...d.data()}))); setLoading(false); });
+      
+      const qChats = query(collection(db, 'chats'), orderBy('createdAt', 'asc'));
+      onSnapshot(qChats, (s) => setChatMessages(s.docs.map(d=>({id:d.id, ...d.data()}))));
+    }
+  }, []);
 
-            {/* 메인 콘텐츠 */}
-            <main className="flex-1">
-                {activeTab === 'archive' && <div className="p-6">Archive Content (기존 기능)</div>}
-                {activeTab === 'lounge' && <div className="p-6">Lounge Content (기존 기능)</div>}
-                {activeTab === 'picks' && <MusicPick />}
-            </main>
+  return (
+    <div className="flex flex-col h-screen">
+      <header className="py-5 border-b border-zinc-900 text-center">
+        <h1 className="text-lg tracking-[0.3em] text-white">PHILL</h1>
+      </header>
+
+      {/* 탭 네비게이션 */}
+      <nav className="flex justify-center gap-6 py-4 border-b border-zinc-900/50">
+        {['archive', 'lounge', 'picks'].map((tab) => (
+          <button 
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`text-[10px] uppercase tracking-widest transition ${activeTab === tab ? 'text-jazzRed' : 'text-zinc-600'}`}
+          >
+            {tab}
+          </button>
+        ))}
+      </nav>
+
+      {/* 메인 콘텐츠 영역 */}
+      <main className="flex-1 overflow-hidden p-4">
+        <div className="w-full max-w-[980px] mx-auto h-full bg-jazzCard/65 rounded-2xl overflow-hidden border border-zinc-900">
+          
+          {activeTab === 'archive' && (
+             <div className="p-4 h-full overflow-y-auto">
+               <p className="text-center text-zinc-500 py-10">기존 게시판 로직이 이곳에 위치합니다.</p>
+             </div>
+          )}
+
+          {activeTab === 'lounge' && (
+             <div className="p-4 h-full overflow-y-auto">
+               <p className="text-center text-zinc-500 py-10">기존 채팅 로직이 이곳에 위치합니다.</p>
+             </div>
+          )}
+
+          {activeTab === 'picks' && <MusicPick />}
         </div>
-    );
+      </main>
+    </div>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
