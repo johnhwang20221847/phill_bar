@@ -34,14 +34,8 @@
   window.__auth = { auth, onAuthStateChanged };
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
-
-<style>
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-thumb { background: #FF2A1A; border-radius: 4px; }
-  .feed-scroll-container { scrollbar-width: thin; scrollbar-color: #FF2A1A transparent; }
-</style>
 </head>
-<body class="bg-[#060202] text-zinc-300 font-sans min-h-screen">
+<body class="bg-[#060202] text-zinc-300 font-sans">
 <div id="root"></div>
 
 <script type="text/babel">
@@ -51,31 +45,20 @@ function App() {
   const [activeTab, setActiveTab] = useState('archive');
   const [feeds, setFeeds] = useState([]);
   const [picks, setPicks] = useState([]);
+  const [selectedFeed, setSelectedFeed] = useState(null);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
     const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
-    const { onAuthStateChanged, auth } = window.__auth;
-
     const unsubFeeds = onSnapshot(query(collection(db, 'feeds'), orderBy('createdAt', 'desc')), (snapshot) => {
       setFeeds(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-
     const unsubPicks = onSnapshot(query(collection(db, 'music_picks'), orderBy('createdAt', 'desc')), (snapshot) => {
       setPicks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-
-    onAuthStateChanged(auth, (u) => setUser(u));
+    window.__auth.onAuthStateChanged(window.__auth.auth, (u) => setUser(u));
     return () => { unsubFeeds(); unsubPicks(); };
   }, []);
-
-  const handleRate = async (pickId, score) => {
-    if (!user) return alert("로그인 후 평점을 매겨주세요.");
-    const { db, doc, updateDoc, arrayUnion } = window.__firestore;
-    await updateDoc(doc(db, 'music_picks', pickId), {
-      ratings: arrayUnion({ user: user.email, score: score })
-    });
-  };
 
   return (
     <div className="flex flex-col h-screen">
@@ -90,49 +73,48 @@ function App() {
         </nav>
       </header>
 
-      <main className="flex-1 overflow-hidden flex justify-center p-4">
-        <div className="w-full max-w-[980px] bg-[#120A0A]/60 rounded-2xl border border-zinc-800 flex flex-col overflow-hidden">
+      <main className="flex-1 overflow-y-auto p-4 flex justify-center">
+        <div className="w-full max-w-[980px]">
           
-          {/* ARCHIVE 탭 */}
-          <div className={`flex-1 p-6 ${activeTab === 'archive' ? 'block' : 'hidden'}`}>
-             <div className="grid grid-cols-2 gap-4 overflow-y-auto h-full">
-               {feeds.map(f => <div key={f.id} className="aspect-square bg-zinc-900 rounded-lg flex items-center justify-center text-xs">{f.title}</div>)}
-             </div>
-          </div>
+          {/* ARCHIVE 탭 - 기존 그리드 방식 복구 */}
+          {activeTab === 'archive' && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {feeds.map(f => (
+                <div key={f.id} onClick={() => setSelectedFeed(f)} className="aspect-square bg-zinc-900 rounded-lg overflow-hidden cursor-pointer hover:opacity-80">
+                  {f.coverImage ? <img src={f.coverImage.split('\n')[0]} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[10px]">{f.title}</div>}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* LOUNGE 탭 */}
-          <div className={`flex-1 p-6 ${activeTab === 'lounge' ? 'block' : 'hidden'}`}>
-             <div className="text-zinc-500 text-xs">준비 중인 라운지 공간입니다...</div>
-          </div>
+          {activeTab === 'lounge' && <div className="text-center text-xs text-zinc-500 mt-10">준비 중인 라운지 공간입니다.</div>}
 
           {/* PICKS 탭 */}
-          <div className={`flex-1 p-6 ${activeTab === 'picks' ? 'block' : 'hidden'}`}>
-            <div className="space-y-4 overflow-y-auto h-full">
-              {picks.map(p => {
-                const ratings = p.ratings || [];
-                const avg = ratings.length > 0 ? (ratings.reduce((a, b) => a + b.score, 0) / ratings.length).toFixed(1) : 0;
-                return (
-                  <div key={p.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-                    <p className="text-white text-sm">{p.title}</p>
-                    <p className="text-[10px] text-zinc-500 mb-2">{p.artist}</p>
-                    <div className="flex items-center gap-3">
-                      <div className="flex">
-                        {[1,2,3,4,5].map(s => (
-                          <button key={s} onClick={() => handleRate(p.id, s)} className="text-jazzOrange/70 hover:text-jazzOrange">
-                            <i className="fa-star fa-solid text-[10px] mr-1"></i>
-                          </button>
-                        ))}
-                      </div>
-                      <span className="text-[10px] text-zinc-400">평점: {avg}</span>
-                    </div>
-                  </div>
-                );
-              })}
+          {activeTab === 'picks' && (
+            <div className="space-y-4">
+              {picks.map(p => (
+                <div key={p.id} className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800">
+                  <p className="text-white text-sm">{p.title}</p>
+                  <p className="text-[10px] text-zinc-500">{p.artist}</p>
+                </div>
+              ))}
             </div>
-          </div>
-
+          )}
         </div>
       </main>
+
+      {/* 게시물 상세 모달 (기존 로직 복구) */}
+      {selectedFeed && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setSelectedFeed(null)}>
+          <div className="bg-[#120A0A] w-full max-w-lg p-6 rounded-2xl border border-zinc-800" onClick={e => e.stopPropagation()}>
+            <h2 className="text-white text-lg mb-2">{selectedFeed.title}</h2>
+            <img src={selectedFeed.coverImage?.split('\n')[0]} className="w-full rounded-lg mb-4" />
+            <p className="text-zinc-400 text-xs">{selectedFeed.bio}</p>
+            <button onClick={() => setSelectedFeed(null)} className="mt-6 text-zinc-600 hover:text-white text-xs">닫기</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
