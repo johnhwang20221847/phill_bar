@@ -5,35 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Phill | Online Jazzbar</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, arrayUnion, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyADaeEPaUvLyU6J8eIPIy9luNeDhizxg-Q",
-    authDomain: "phill-bar.firebaseapp.com",
-    projectId: "phill-bar",
-    storageBucket: "phill-bar.firebasestorage.app",
-    messagingSenderId: "298800907820",
-    appId: "1:298800907820:web:98b360862cf2b0c6deb389",
-    measurementId: "G-BHQEZYV429"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
-
-  window.__firestore = { db, collection, onSnapshot, query, orderBy, doc, updateDoc, arrayUnion, addDoc };
-  window.__auth = { auth, onAuthStateChanged };
-  window.dispatchEvent(new Event('firebase-ready'));
-</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-[#060202] text-zinc-300 font-sans">
 <div id="root"></div>
@@ -44,21 +19,24 @@ const { useState, useEffect } = React;
 function App() {
   const [activeTab, setActiveTab] = useState('archive');
   const [feeds, setFeeds] = useState([]);
-  const [picks, setPicks] = useState([]);
   const [selectedFeed, setSelectedFeed] = useState(null);
-  const [user, setUser] = useState(null);
+  const [imgIndex, setImgIndex] = useState(0);
 
   useEffect(() => {
+    // Firebase 데이터 로드 로직 (이전과 동일)
     const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
-    const unsubFeeds = onSnapshot(query(collection(db, 'feeds'), orderBy('createdAt', 'desc')), (snapshot) => {
+    return onSnapshot(query(collection(db, 'feeds'), orderBy('createdAt', 'desc')), (snapshot) => {
       setFeeds(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-    const unsubPicks = onSnapshot(query(collection(db, 'music_picks'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setPicks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    window.__auth.onAuthStateChanged(window.__auth.auth, (u) => setUser(u));
-    return () => { unsubFeeds(); unsubPicks(); };
   }, []);
+
+  // 모달 열릴 때 인덱스 초기화
+  const openModal = (feed) => {
+    setSelectedFeed(feed);
+    setImgIndex(0);
+  };
+
+  const images = selectedFeed?.coverImage ? selectedFeed.coverImage.split('\n') : [];
 
   return (
     <div className="flex flex-col h-screen">
@@ -74,44 +52,47 @@ function App() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 flex justify-center">
-        <div className="w-full max-w-[980px]">
-          
-          {/* ARCHIVE 탭 - 기존 그리드 방식 복구 */}
-          {activeTab === 'archive' && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {feeds.map(f => (
-                <div key={f.id} onClick={() => setSelectedFeed(f)} className="aspect-square bg-zinc-900 rounded-lg overflow-hidden cursor-pointer hover:opacity-80">
-                  {f.coverImage ? <img src={f.coverImage.split('\n')[0]} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[10px]">{f.title}</div>}
-                </div>
-              ))}
+        <div className="w-full max-w-[980px] grid grid-cols-2 md:grid-cols-4 gap-4">
+          {feeds.map(f => (
+            <div key={f.id} onClick={() => openModal(f)} className="aspect-square bg-zinc-900 rounded-lg overflow-hidden cursor-pointer hover:opacity-80">
+              <img src={f.coverImage?.split('\n')[0]} className="w-full h-full object-cover" />
             </div>
-          )}
-
-          {/* LOUNGE 탭 */}
-          {activeTab === 'lounge' && <div className="text-center text-xs text-zinc-500 mt-10">준비 중인 라운지 공간입니다.</div>}
-
-          {/* PICKS 탭 */}
-          {activeTab === 'picks' && (
-            <div className="space-y-4">
-              {picks.map(p => (
-                <div key={p.id} className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800">
-                  <p className="text-white text-sm">{p.title}</p>
-                  <p className="text-[10px] text-zinc-500">{p.artist}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </div>
       </main>
 
-      {/* 게시물 상세 모달 (기존 로직 복구) */}
+      {/* 상세 모달 */}
       {selectedFeed && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setSelectedFeed(null)}>
-          <div className="bg-[#120A0A] w-full max-w-lg p-6 rounded-2xl border border-zinc-800" onClick={e => e.stopPropagation()}>
-            <h2 className="text-white text-lg mb-2">{selectedFeed.title}</h2>
-            <img src={selectedFeed.coverImage?.split('\n')[0]} className="w-full rounded-lg mb-4" />
-            <p className="text-zinc-400 text-xs">{selectedFeed.bio}</p>
-            <button onClick={() => setSelectedFeed(null)} className="mt-6 text-zinc-600 hover:text-white text-xs">닫기</button>
+        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4" onClick={() => setSelectedFeed(null)}>
+          <div className="bg-[#120A0A] w-full max-w-lg rounded-2xl border border-zinc-800 overflow-hidden" onClick={e => e.stopPropagation()}>
+            
+            {/* 이미지 슬라이더 영역 */}
+            <div className="relative aspect-square w-full">
+              <img src={images[imgIndex]} className="w-full h-full object-cover" />
+              
+              {/* 좌우 네비게이션 */}
+              {images.length > 1 && (
+                <>
+                  <button className="absolute left-2 top-1/2 bg-black/50 p-2 rounded-full text-white" onClick={() => setImgIndex(i => (i === 0 ? images.length - 1 : i - 1))}>
+                    <i className="fa-solid fa-chevron-left"></i>
+                  </button>
+                  <button className="absolute right-2 top-1/2 bg-black/50 p-2 rounded-full text-white" onClick={() => setImgIndex(i => (i === images.length - 1 ? 0 : i + 1))}>
+                    <i className="fa-solid fa-chevron-right"></i>
+                  </button>
+                  {/* 이미지 하단 슬라이더 바/인디케이터 */}
+                  <div className="absolute bottom-4 left-0 w-full flex justify-center gap-1">
+                    {images.map((_, idx) => (
+                      <div key={idx} className={`h-1 w-6 rounded-full ${imgIndex === idx ? 'bg-white' : 'bg-white/30'}`}></div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="p-6">
+              <h2 className="text-white text-lg mb-2">{selectedFeed.title}</h2>
+              <p className="text-zinc-400 text-xs">{selectedFeed.bio}</p>
+            </div>
           </div>
         </div>
       )}
