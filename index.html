@@ -5,97 +5,611 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Phill | Online Jazzbar</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght=200;300;400;500&family=Noto+Sans+KR:wght=300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body class="bg-[#060202] text-zinc-300 font-sans">
-<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-<script type="text/babel">
-const { useState, useEffect } = React;
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-function App() {
-  const [activeTab, setActiveTab] = useState('archive');
-  const [feeds, setFeeds] = useState([]);
-  const [selectedFeed, setSelectedFeed] = useState(null);
-  const [imgIndex, setImgIndex] = useState(0);
-
-  useEffect(() => {
-    // Firebase 데이터 로드 로직 (이전과 동일)
-    const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
-    return onSnapshot(query(collection(db, 'feeds'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setFeeds(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
-
-  // 모달 열릴 때 인덱스 초기화
-  const openModal = (feed) => {
-    setSelectedFeed(feed);
-    setImgIndex(0);
+  const firebaseConfig = {
+    apiKey: "AIzaSyADaeEPaUvLyU6J8eIPIy9luNeDhizxg-Q",
+    authDomain: "phill-bar.firebaseapp.com",
+    projectId: "phill-bar",
+    storageBucket: "phill-bar.firebasestorage.app",
+    messagingSenderId: "298800907820",
+    appId: "1:298800907820:web:98b360862cf2b0c6deb389",
+    measurementId: "G-BHQEZYV429"
   };
 
-  const images = selectedFeed?.coverImage ? selectedFeed.coverImage.split('\n') : [];
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  window.__firestore = { db, collection, getDocs, doc, updateDoc, onSnapshot, query, orderBy, arrayUnion, addDoc };
+  window.__auth = { auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail };
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: { jazzBlack: '#060202', jazzCard: '#120A0A', jazzRed: '#FF2A1A', jazzOrange: '#FFA100' },
+      fontFamily: { sans: ['Outfit', 'Noto Sans KR', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<style>
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #FF2A1A; border-radius: 4px; }
+.feed-scroll-container { scrollbar-width: thin; scrollbar-color: #FF2A1A transparent; }
+
+.yt-hidden-player {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+</style>
+</head>
+<body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen relative flex flex-col justify-between overflow-x-hidden">
+<div id="root" class="w-full min-h-screen flex flex-col justify-between z-10"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+function App() {
+  const [feeds, setFeeds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFeed, setSelectedFeed] = useState(null);
+  const [currentImgIdx, setCurrentImgIdx] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [commentInputs, setCommentInputs] = useState({});
+  const audioRef = useRef(null);
+
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const isDragging = useRef(false);
+
+  const [user, setUser] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'findId' | 'findPw'
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [idFindGuide, setIdFindGuide] = useState('');
+
+  const [editingCommentIdx, setEditingCommentIdx] = useState(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const chatEndRef = useRef(null);
+
+  const [activeTab, setActiveTab] = useState('archive');
+
+  useEffect(() => {
+    let unsubFeeds;
+    let unsubChats;
+
+    const initFirestore = () => {
+      const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
+      
+      const qFeeds = query(collection(db, 'feeds'), orderBy('createdAt', 'desc'));
+      unsubFeeds = onSnapshot(qFeeds, (snapshot) => {
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setFeeds(data);
+        setLoading(false);
+        setSelectedFeed(prev => prev ? (data.find(f => f.id === prev.id) || null) : null);
+      });
+
+      const qChats = query(collection(db, 'chats'), orderBy('createdAt', 'asc'));
+      unsubChats = onSnapshot(qChats, (snapshot) => {
+        const messages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setChatMessages(messages);
+      });
+    };
+
+    const initAuth = () => {
+      const { auth, onAuthStateChanged } = window.__auth;
+      return onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+      });
+    };
+
+    let unsubAuth;
+
+    if (window.__firestore && window.__auth) {
+      initFirestore();
+      unsubAuth = initAuth();
+    } else {
+      window.addEventListener('firebase-ready', () => {
+        initFirestore();
+        unsubAuth = initAuth();
+      }, { once: true });
+    }
+
+    return () => {
+      if (unsubFeeds) unsubFeeds();
+      if (unsubChats) unsubChats();
+      if (unsubAuth) unsubAuth();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, activeTab]); 
+
+  const handleSendChatMessage = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert("라운지 채팅에 참여하려면 먼저 로그인해 주세요.");
+      setAuthMode('login');
+      setShowAuthModal(true);
+      return;
+    }
+    if (!user.emailVerified) {
+      alert("이메일 인증 링크를 완료한 계정만 라운지 대화 참여가 가능합니다.");
+      return;
+    }
+
+    const text = chatInput.trim();
+    if (!text) return;
+
+    const { db, collection, addDoc } = window.__firestore;
+    const username = user.email.split('@')[0];
+
+    try {
+      await addDoc(collection(db, 'chats'), {
+        user: username,
+        text: text,
+        createdAt: Date.now()
+      });
+      setChatInput('');
+    } catch (err) {
+      console.error("채팅 메시지 전송 실패:", err);
+    }
+  };
+
+  const togglePlay = () => {
+    if (isPlaying) audioRef.current.pause();
+    else audioRef.current.play().catch(()=>{});
+    setIsPlaying(!isPlaying);
+  };
+
+  const openFeed = (feed) => {
+    setSelectedFeed(feed);
+    setCurrentImgIdx(0);
+    setEditingCommentIdx(null);
+    setEditingCommentText('');
+  };
+
+  const handleAddComment = async (e, feedId) => {
+    e.preventDefault();
+    if (!user) {
+      alert("방명록을 남기려면 먼저 로그인해 주세요.");
+      setAuthMode('login');
+      setShowAuthModal(true);
+      return;
+    }
+    if (!user.emailVerified) {
+      alert("이메일 인증 링크를 완료한 계정만 방명록 참여가 가능합니다.");
+      return;
+    }
+
+    const text = (commentInputs[feedId] || "").trim();
+    if (!text) return;
+
+    const { db, doc, updateDoc, arrayUnion } = window.__firestore;
+    const username = user.email.split('@')[0];
+    const newComment = { user: username, text, createdAt: Date.now() };
+
+    try {
+      await updateDoc(doc(db, 'feeds', feedId), {
+        comments: arrayUnion(newComment)
+      });
+      setCommentInputs({ ...commentInputs, [feedId]: "" });
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
+  const nextImage = (imagesCount) => {
+    if (imagesCount <= 1) return;
+    setCurrentImgIdx((prev) => (prev + 1) % imagesCount);
+  };
+
+  const prevImage = (imagesCount) => {
+    if (imagesCount <= 1) return;
+    setCurrentImgIdx((prev) => (prev - 1 + imagesCount) % imagesCount);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches ? e.touches[0].clientX : e.clientX;
+    touchEndX.current = touchStartX.current; 
+    isDragging.current = true;
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging.current) return;
+    touchEndX.current = e.touches ? e.touches[0].clientX : e.clientX;
+  };
+
+  const handleTouchEnd = (imagesCount) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    
+    const swipeThreshold = 40; 
+    const diffX = touchStartX.current - touchEndX.current;
+
+    if (Math.abs(diffX) > swipeThreshold) {
+      if (diffX > 0) {
+        nextImage(imagesCount);
+      } else {
+        prevImage(imagesCount);
+      }
+    }
+  };
+
+  const handleSignIn = (e) => {
+    e.preventDefault();
+    const { auth, signInWithEmailAndPassword } = window.__auth;
+    signInWithEmailAndPassword(auth, authEmail, authPassword)
+      .then((userCredential) => {
+        if (!userCredential.user.emailVerified) {
+          alert("⚠️ 아직 이메일 인증이 완료되지 않은 계정입니다. 가입하신 이메일함을 확인해주세요.");
+        } else {
+          alert("재즈바 공간에 정상적으로 입장했습니다.");
+        }
+        closeAuthModal();
+      })
+      .catch(err => alert(`로그인 실패: 이메일 또는 비밀번호를 다시 확인하세요.`));
+  };
+
+  const handleSignUp = (e) => {
+    e.preventDefault();
+    const { auth, createUserWithEmailAndPassword, sendEmailVerification } = window.__auth;
+    createUserWithEmailAndPassword(auth, authEmail, authPassword)
+      .then((userCredential) => {
+        sendEmailVerification(userCredential.user)
+          .then(() => {
+            alert("✉️ 인증 링크 메일이 발송되었습니다! 메일 인증 완료 후 로그인해 주세요.");
+            window.__auth.signOut(auth);
+            setAuthMode('login');
+          });
+      })
+      .catch(err => alert(`회원가입 실패: ${err.message}`));
+  };
+
+  const handleFindPassword = (e) => {
+    e.preventDefault();
+    const { auth, sendPasswordResetEmail } = window.__auth;
+    sendPasswordResetEmail(auth, authEmail)
+      .then(() => {
+        alert("✉️ 입력하신 이메일로 비밀번호 재설정 링크가 발송되었습니다.");
+        setAuthMode('login');
+      })
+      .catch(err => alert(`비밀번호 재설정 실패: 존재하지 않는 계정이거나 이메일을 다시 확인해주세요.`));
+  };
+
+  const handleSignOut = () => {
+    const { auth, signOut } = window.__auth;
+    signOut(auth).then(() => alert("공간에서 로그아웃 처리되었습니다."));
+  };
+
+  const closeAuthModal = () => {
+    setShowAuthModal(false);
+    setAuthEmail('');
+    setAuthPassword('');
+    setIdFindGuide('');
+  };
+
+  const currentUsername = user ? user.email.split('@')[0] : '';
 
   return (
-    <div className="flex flex-col h-screen">
-      <header className="p-6 text-center border-b border-zinc-900">
-        <h1 className="text-xl tracking-[0.3em] text-white">PHILL</h1>
-        <nav className="flex justify-center gap-6 mt-4">
-          {['archive', 'lounge', 'picks'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`text-[10px] uppercase tracking-widest ${activeTab === tab ? 'text-jazzRed' : 'text-zinc-600'}`}>
-              {tab}
-            </button>
-          ))}
-        </nav>
+    <div className="min-h-screen flex flex-col justify-between relative">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-to-br from-jazzRed via-jazzOrange to-transparent opacity-15 blur-[160px] pointer-events-none z-0"></div>
+      <audio ref={audioRef} src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" loop />
+
+      {/* 헤더 */}
+      <header className="w-full py-5 px-6 sticky top-0 bg-jazzBlack/80 backdrop-blur-md z-40 border-b border-zinc-900/40 flex items-center justify-between">
+        <div className="w-16"></div>
+        <div className="text-center">
+          <h1 className="text-xl font-light tracking-[0.3em] text-white">PHILL</h1>
+          <p className="text-[10px] tracking-widest text-zinc-500 mt-0.5 uppercase">Online bar & Quiet space</p>
+        </div>
+        <div className="w-16 text-right">
+          {user ? (
+            <button onClick={handleSignOut} className="text-[10px] tracking-wider text-zinc-500 hover:text-white transition uppercase">Logout</button>
+          ) : (
+            <button onClick={() => { setAuthMode('login'); setShowAuthModal(true); }} className="text-[10px] tracking-wider text-jazzOrange hover:text-white transition uppercase">Login</button>
+          )}
+        </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 flex justify-center">
-        <div className="w-full max-w-[980px] grid grid-cols-2 md:grid-cols-4 gap-4">
-          {feeds.map(f => (
-            <div key={f.id} onClick={() => openModal(f)} className="aspect-square bg-zinc-900 rounded-lg overflow-hidden cursor-pointer hover:opacity-80">
-              <img src={f.coverImage?.split('\n')[0]} className="w-full h-full object-cover" />
+      {/* 메인 영역 */}
+      <main className="flex-1 w-full flex justify-center p-3 md:p-4 z-10 pb-32 md:pb-4">
+        <div className="w-full max-w-[980px] bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 shadow-2xl flex flex-col md:flex-row md:h-[580px] overflow-hidden">
+          
+          {/* 1. 게시판 영역 */}
+          <div className={`w-full md:w-[60%] p-4 flex flex-col h-full md:border-r border-zinc-900/60 ${activeTab === 'archive' ? 'block' : 'hidden md:flex'}`}>
+            <div className="mb-3 px-1 flex items-center gap-2 flex-shrink-0">
+              <span className="text-[10px] tracking-widest text-zinc-400 uppercase font-light">SOUND ARCHIVE</span>
             </div>
-          ))}
+            
+            <div className="flex-1 min-h-0 md:h-[calc(100%-2rem)]">
+              <div className="grid grid-cols-2 gap-3 md:max-h-full md:overflow-y-auto pr-1 pb-4 feed-scroll-container">
+                {loading && (
+                  <div className="col-span-2 h-full flex flex-col items-center justify-center text-zinc-600 text-xs font-light tracking-widest gap-2 py-32">
+                    <i className="fa-solid fa-xs fa-circle-nodes animate-pulse"></i>
+                    <span>LOADING SOUNDS...</span>
+                  </div>
+                )}
+                {!loading && feeds.map((feed) => {
+                  const imgList = feed.coverImage ? feed.coverImage.split('\n').filter(Boolean) : [];
+                  const hasImg = imgList.length > 0;
+                  const hasVideo = !!feed.youtubeId;
+
+                  return (
+                    <div 
+                      key={feed.id} 
+                      onClick={() => openFeed(feed)} 
+                      className="group relative aspect-square w-full bg-zinc-950 rounded-xl overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 active:scale-[0.98] transition-all duration-200"
+                    >
+                      {hasImg ? (
+                        <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt="cover" />
+                      ) : hasVideo ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black p-2 text-center">
+                          <i className="fa-brands fa-youtube text-xl text-jazzRed mb-1"></i>
+                          <span className="text-[8px] uppercase tracking-widest text-zinc-500 font-medium">YOUTUBE Loop</span>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full p-3 flex items-center justify-center text-center bg-zinc-900 text-[10px] font-light text-zinc-400 leading-relaxed overflow-hidden">
+                          <p className="line-clamp-4 text-ellipsis">{feed.bio}</p>
+                        </div>
+                      )}
+                      {imgList.length > 1 && <div className="absolute top-2 right-2 text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
+                      
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-3 opacity-95 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                        <h3 className="text-[11px] text-white truncate font-medium capitalize">{feed.title || 'Untitled'}</h3>
+                        <p className="text-[9px] text-jazzOrange truncate font-light mt-0.5">{feed.artistName || 'Phill Session'}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* 2. 실시간 라운지 채팅 영역 */}
+          <div className={`w-full md:w-[40%] flex flex-col justify-between bg-black/15 h-[calc(100vh-250px)] md:h-full ${activeTab === 'lounge' ? 'flex' : 'hidden md:flex'}`}>
+            <div className="p-4 border-b border-zinc-900/50 flex items-center justify-between bg-black/20">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse"></span>
+                <span className="text-[10px] tracking-widest text-zinc-300 uppercase font-light">Lounge Live Stream</span>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 feed-scroll-container">
+              {chatMessages.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-zinc-600 text-[10px] font-light tracking-widest text-center">
+                  BAR LOUNGE IS QUIET.<br/>LEAVE A NOTE FIRST.
+                </div>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div key={msg.id} className="text-[11px] leading-relaxed bg-zinc-950/30 p-2 rounded border border-zinc-900/10">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className={`font-medium ${msg.user === currentUsername ? 'text-jazzRed' : 'text-jazzOrange'}`}>
+                        {msg.user}
+                      </span>
+                      <span className="text-[8px] text-zinc-600 font-light">
+                        {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                      </span>
+                    </div>
+                    <span className="text-zinc-300 font-light break-all">{msg.text}</span>
+                  </div>
+                ))
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <form onSubmit={handleSendChatMessage} className="p-3 border-t border-zinc-900/50 flex gap-2 bg-jazzBlack/40 backdrop-blur-md">
+              <input 
+                type="text" 
+                placeholder={user ? "공간에 어울리는 이야기를 나누어주세요..." : "로그인 후 대화에 참여해보세요."}
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                disabled={!user}
+                className="flex-grow bg-zinc-950/80 border border-zinc-800/80 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzRed font-light disabled:opacity-40"
+              />
+              <button type="submit" disabled={!user} className="bg-jazzRed text-white text-xs px-3.5 py-2 rounded font-medium hover:bg-red-700 transition disabled:opacity-40">
+                <i className="fa-solid fa-paper-plane text-[10px]"></i>
+              </button>
+            </form>
+          </div>
+
         </div>
       </main>
 
-      {/* 상세 모달 */}
-      {selectedFeed && (
-        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4" onClick={() => setSelectedFeed(null)}>
-          <div className="bg-[#120A0A] w-full max-w-lg rounded-2xl border border-zinc-800 overflow-hidden" onClick={e => e.stopPropagation()}>
-            
-            {/* 이미지 슬라이더 영역 */}
-            <div className="relative aspect-square w-full">
-              <img src={images[imgIndex]} className="w-full h-full object-cover" />
-              
-              {/* 좌우 네비게이션 */}
-              {images.length > 1 && (
-                <>
-                  <button className="absolute left-2 top-1/2 bg-black/50 p-2 rounded-full text-white" onClick={() => setImgIndex(i => (i === 0 ? images.length - 1 : i - 1))}>
-                    <i className="fa-solid fa-chevron-left"></i>
-                  </button>
-                  <button className="absolute right-2 top-1/2 bg-black/50 p-2 rounded-full text-white" onClick={() => setImgIndex(i => (i === images.length - 1 ? 0 : i + 1))}>
-                    <i className="fa-solid fa-chevron-right"></i>
-                  </button>
-                  {/* 이미지 하단 슬라이더 바/인디케이터 */}
-                  <div className="absolute bottom-4 left-0 w-full flex justify-center gap-1">
-                    {images.map((_, idx) => (
-                      <div key={idx} className={`h-1 w-6 rounded-full ${imgIndex === idx ? 'bg-white' : 'bg-white/30'}`}></div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+      {/* 모바일 하단 탭 네비게이션 고정 */}
+      <div className="md:hidden fixed bottom-[53px] left-0 right-0 h-[48px] bg-jazzCard/90 backdrop-blur-lg border-t border-zinc-900 flex z-30">
+        <button onClick={() => setActiveTab('archive')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] tracking-widest uppercase transition ${activeTab === 'archive' ? 'text-jazzRed font-medium' : 'text-zinc-600'}`}>
+          <i className="fa-solid fa-compact-disc text-xs"></i>
+          <span>Sounds</span>
+        </button>
+        <div className="w-[1px] h-6 bg-zinc-900 my-auto"></div>
+        <button onClick={() => setActiveTab('lounge')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] tracking-widest uppercase transition ${activeTab === 'lounge' ? 'text-jazzOrange font-medium' : 'text-zinc-600'}`}>
+          <div className="relative">
+            <i className="fa-solid fa-comments text-xs"></i>
+            <span className="absolute -top-1 -right-2 w-1 h-1 rounded-full bg-jazzRed animate-pulse"></span>
+          </div>
+          <span>Lounge</span>
+        </button>
+      </div>
 
-            <div className="p-6">
-              <h2 className="text-white text-lg mb-2">{selectedFeed.title}</h2>
-              <p className="text-zinc-400 text-xs">{selectedFeed.bio}</p>
-            </div>
+      {/* 통합 인증 모달 (로그인/회원가입/ID찾기/PW찾기) */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-sm bg-jazzCard rounded-2xl border border-zinc-800 p-8 shadow-2xl text-center space-y-5">
+            <button onClick={closeAuthModal} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-sm"><i className="fa-times fa-solid"></i></button>
+            
+            {/* 1. 로그인 화면 */}
+            {authMode === 'login' && (
+              <>
+                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Jazzbar Access Space</h2>
+                <form onSubmit={handleSignIn} className="space-y-3 pt-2">
+                  <input type="email" placeholder="이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                  <input type="password" placeholder="비밀번호" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                  <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SIGN IN</button>
+                </form>
+                <div className="flex justify-center gap-4 text-[10px] text-zinc-500 pt-2">
+                  <button onClick={() => { setAuthMode('signup'); setAuthEmail(''); setAuthPassword(''); }} className="hover:text-zinc-300 transition">회원가입</button>
+                  <span className="text-zinc-800">|</span>
+                  <button onClick={() => setAuthMode('findId')} className="hover:text-zinc-300 transition">아이디 찾기</button>
+                  <span className="text-zinc-800">|</span>
+                  <button onClick={() => { setAuthMode('findPw'); setAuthEmail(''); }} className="hover:text-zinc-300 transition">비밀번호 찾기</button>
+                </div>
+              </>
+            )}
+
+            {/* 2. 회원가입 화면 */}
+            {authMode === 'signup' && (
+              <>
+                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Create Account</h2>
+                <form onSubmit={handleSignUp} className="space-y-3 pt-2">
+                  <input type="email" placeholder="사용할 이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                  <input type="password" placeholder="비밀번호 (6자리 이상)" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                  <button type="submit" className="w-full bg-jazzOrange text-black text-xs py-2.5 rounded font-medium hover:bg-amber-600 transition">REGISTER</button>
+                </form>
+                <div className="pt-2">
+                  <button onClick={() => { setAuthMode('login'); setAuthEmail(''); setAuthPassword(''); }} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition">이미 계정이 있으신가요? 로그인</button>
+                </div>
+              </>
+            )}
+
+            {/* 3. 아이디(이메일) 찾기 안내 화면 */}
+            {authMode === 'findId' && (
+              <>
+                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Find Email Account</h2>
+                <div className="text-left text-xs text-zinc-400 font-light leading-relaxed p-4 bg-zinc-950/50 rounded border border-zinc-900 space-y-2">
+                  <p>본 플랫폼은 별도의 개인정보를 수집하지 않으며, <strong className="text-jazzOrange">이메일 주소 자체를 고유 ID</strong>로 사용합니다.</p>
+                  <p>아이디 분실 시 사용하셨던 메일함(Gmail, Naver 등)에서 <span className="text-zinc-200">"PHILL"</span> 또는 <span className="text-zinc-200">"phill-bar"</span>에서 발송된 인증 메일이 있는지 확인해 주세요.</p>
+                </div>
+                <div className="pt-2">
+                  <button onClick={() => setAuthMode('login')} className="w-full bg-zinc-800 text-zinc-300 text-xs py-2 rounded hover:bg-zinc-700 transition">로그인 화면으로 돌아가기</button>
+                </div>
+              </>
+            )}
+
+            {/* 4. 비밀번호 재설정 화면 */}
+            {authMode === 'findPw' && (
+              <>
+                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Reset Password</h2>
+                <p className="text-[11px] text-zinc-500 font-light">가입하셨던 이메일 주소를 입력하시면<br/>비밀번호 재설정 링크를 보내드립니다.</p>
+                <form onSubmit={handleFindPassword} className="space-y-3 pt-2">
+                  <input type="email" placeholder="가입한 이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                  <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SEND RESET LINK</button>
+                </form>
+                <div className="pt-2">
+                  <button onClick={() => setAuthMode('login')} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition">로그인 화면으로 돌아가기</button>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}
+
+      {/* 피드 상세 내용 모달 */}
+      {selectedFeed && (() => {
+        const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
+        const hasImg = images.length > 0;
+        const hasVideo = !!selectedFeed.youtubeId;
+
+        const HiddenAudio = hasVideo ? (
+          <div className="yt-hidden-player">
+            <iframe src={`https://www.youtube.com/embed/${selectedFeed.youtubeId}?autoplay=1&mute=0&loop=1&playlist=${selectedFeed.youtubeId}&start=${selectedFeed.startTime || 0}&end=${selectedFeed.endTime || 0}&controls=0`} title="YT" frameBorder="0" width="1" height="1"></iframe>
+          </div>
+        ) : null;
+
+        return (
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <div className="relative w-full max-w-[850px] h-full max-h-[85vh] md:max-h-[85vh] bg-jazzCard rounded-2xl border border-zinc-800 flex flex-col md:flex-row shadow-2xl overflow-y-auto md:overflow-hidden">
+              <button onClick={() => setSelectedFeed(null)} className="absolute top-3 right-3 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
+              
+              {/* 미디어 이미지 커버 슬라이드 본체 */}
+              <div 
+                className="w-full md:w-1/2 aspect-square flex-shrink-0 bg-black relative overflow-hidden select-none group/imgContainer"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={() => handleTouchEnd(images.length)}
+              >
+                {HiddenAudio}
+                {hasImg ? (
+                  <img src={images[currentImgIdx]} className="w-full h-full object-cover pointer-events-none" alt="modal-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-zinc-600 font-mono">AUDIO SESSION</div>
+                )}
+
+                {hasImg && images.length > 1 && (
+                  <>
+                    <button onClick={(e) => { e.stopPropagation(); prevImage(images.length); }} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed border-none z-20">
+                      <i className="fa-solid fa-chevron-left text-xs"></i>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); nextImage(images.length); }} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed border-none z-20">
+                      <i className="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-sm">
+                      {images.map((_, idx) => (
+                        <span key={idx} onClick={(e) => { e.stopPropagation(); setCurrentImgIdx(idx); }} className={`w-1.5 h-1.5 rounded-full cursor-pointer transition-all duration-300 ${idx === currentImgIdx ? 'bg-jazzRed scale-110' : 'bg-zinc-500/60'}`} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 방명록 및 본문 디테일 영역 */}
+              <div className="flex flex-col justify-between bg-jazzBlack p-4 md:p-6 w-full md:w-1/2 overflow-hidden flex-1 min-h-0 md:h-full">
+                <div className="flex flex-col gap-3 md:gap-4 flex-1 overflow-y-auto md:overflow-hidden min-h-0">
+                  <div>
+                    <h2 className="text-base md:text-xl font-light text-white truncate capitalize">{selectedFeed.title || 'Untitled'}</h2>
+                    <p className="text-[11px] md:text-xs text-zinc-500 font-light mt-0.5">{selectedFeed.artistName || 'Phill Session'}</p>
+                  </div>
+                  <div className="w-full md:flex-1 text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2.5 border-t border-b border-zinc-900/60 font-sans">
+                    {selectedFeed.bio || <span className="text-zinc-700 italic">소개가 없습니다.</span>}
+                  </div>
+                  <div className="flex-1 min-h-[120px] md:h-24 overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
+                    {(selectedFeed.comments || []).map((c, i) => (
+                      <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30">
+                        <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
+                        <span className="text-zinc-400 font-light">{c.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <form onSubmit={(e) => handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-3 border-t border-zinc-900/60 mt-2">
+                  <input type="text" placeholder="방명록을 남겨주세요..." value={commentInputs[selectedFeed.id] || ""} onChange={(e) => setCommentInputs({ ...commentInputs, [selectedFeed.id]: e.target.value })} className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzRed" />
+                  <button type="submit" className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded font-medium hover:bg-red-700 transition">게시</button>
+                </form>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
