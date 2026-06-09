@@ -1,1 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Review Space</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        const firebaseConfig = { /* 동일한 설정값 사용 */ };
+        const app = initializeApp(firebaseConfig);
+        window.__db = getFirestore(app);
+        window.__coll = collection;
+        window.__addDoc = addDoc;
+        window.__query = query;
+        window.__where = where;
+        window.__onSnapshot = onSnapshot;
+    </script>
+</head>
+<body class="bg-zinc-950 text-zinc-300 p-6">
+    <div id="review-root" class="max-w-2xl mx-auto"></div>
+    <script type="text/babel">
+        function ReviewPage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const musicId = urlParams.get('id');
+            const musicTitle = decodeURIComponent(urlParams.get('title') || '알 수 없음');
+            
+            const [text, setText] = React.useState('');
+            const [rating, setRating] = React.useState(5);
+            const [reviews, setReviews] = React.useState([]);
 
+            React.useEffect(() => {
+                if(!musicId) return;
+                const q = window.__query(window.__coll(window.__db, 'reviews'), window.__where('musicId', '==', musicId));
+                return window.__onSnapshot(q, (sn) => setReviews(sn.docs.map(d => d.data())));
+            }, [musicId]);
+
+            const submit = async () => {
+                await window.__addDoc(window.__coll(window.__db, 'reviews'), {
+                    musicId, musicTitle, text, rating: parseInt(rating), createdAt: Date.now()
+                });
+                setText('');
+            };
+
+            return (
+                <div>
+                    <h1 className="text-xl text-white mb-4">Review: {musicTitle}</h1>
+                    <div className="bg-zinc-900 p-4 rounded-xl mb-6">
+                        <input type="range" min="1" max="5" value={rating} onChange={e => setRating(e.target.value)} className="w-full mb-2" />
+                        <textarea value={text} onChange={e => setText(e.target.value)} className="w-full bg-black p-2 rounded text-white" placeholder="감상을 남겨주세요"></textarea>
+                        <button onClick={submit} className="bg-red-600 w-full py-2 mt-2 rounded">등록</button>
+                    </div>
+                    <div className="space-y-3">
+                        {reviews.map((r, i) => (
+                            <div key={i} className="border-b border-zinc-800 pb-2">
+                                <span className="text-yellow-500">{'★'.repeat(r.rating)}</span>
+                                <p className="text-sm">{r.text}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+        ReactDOM.createRoot(document.getElementById('review-root')).render(<ReviewPage />);
+    </script>
+</body>
+</html>
