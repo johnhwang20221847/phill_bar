@@ -66,15 +66,13 @@ function App() {
     });
 
     onAuthStateChanged(auth, (u) => setUser(u));
-
     return () => { unsubFeeds(); unsubPicks(); };
   }, []);
 
   const handleRate = async (pickId, score) => {
     if (!user) return alert("로그인 후 평점을 매겨주세요.");
     const { db, doc, updateDoc, arrayUnion } = window.__firestore;
-    const pickRef = doc(db, 'music_picks', pickId);
-    await updateDoc(pickRef, {
+    await updateDoc(doc(db, 'music_picks', pickId), {
       ratings: arrayUnion({ user: user.email, score: score })
     });
   };
@@ -83,37 +81,41 @@ function App() {
     <div className="flex flex-col h-screen">
       <header className="p-6 text-center border-b border-zinc-900">
         <h1 className="text-xl tracking-[0.3em] text-white">PHILL</h1>
+        <nav className="flex justify-center gap-6 mt-4">
+          {['archive', 'lounge', 'picks'].map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`text-[10px] uppercase tracking-widest ${activeTab === tab ? 'text-jazzRed' : 'text-zinc-600'}`}>
+              {tab}
+            </button>
+          ))}
+        </nav>
       </header>
 
       <main className="flex-1 overflow-hidden flex justify-center p-4">
-        <div className="w-full max-w-[980px] bg-[#120A0A]/60 rounded-2xl border border-zinc-800 flex overflow-hidden">
+        <div className="w-full max-w-[980px] bg-[#120A0A]/60 rounded-2xl border border-zinc-800 flex flex-col overflow-hidden">
           
-          {/* Archive 탭 */}
-          <div className={`flex-1 p-4 ${activeTab === 'archive' ? 'block' : 'hidden md:block'}`}>
-            <h2 className="text-[10px] text-zinc-400 mb-4">ARCHIVE</h2>
-            <div className="grid grid-cols-2 gap-2 overflow-y-auto h-full pb-20">
-              {feeds.map(f => <div key={f.id} className="aspect-square bg-zinc-900 rounded-lg flex items-center justify-center text-[10px]">{f.title}</div>)}
-            </div>
+          {/* ARCHIVE 탭 */}
+          <div className={`flex-1 p-6 ${activeTab === 'archive' ? 'block' : 'hidden'}`}>
+             <div className="grid grid-cols-2 gap-4 overflow-y-auto h-full">
+               {feeds.map(f => <div key={f.id} className="aspect-square bg-zinc-900 rounded-lg flex items-center justify-center text-xs">{f.title}</div>)}
+             </div>
           </div>
 
-          {/* Lounge 탭 */}
-          <div className={`flex-1 p-4 border-l border-zinc-900 ${activeTab === 'lounge' ? 'block' : 'hidden md:block'}`}>
-            <h2 className="text-[10px] text-zinc-400 mb-4">LOUNGE</h2>
-            <div className="h-full bg-black/20 rounded p-2 text-[10px]">채팅 영역...</div>
+          {/* LOUNGE 탭 */}
+          <div className={`flex-1 p-6 ${activeTab === 'lounge' ? 'block' : 'hidden'}`}>
+             <div className="text-zinc-500 text-xs">준비 중인 라운지 공간입니다...</div>
           </div>
 
-          {/* Picks 탭 */}
-          <div className={`flex-1 p-4 border-l border-zinc-900 ${activeTab === 'picks' ? 'block' : 'hidden md:block'}`}>
-            <h2 className="text-[10px] text-zinc-400 mb-4">MUSIC PICKS</h2>
-            <div className="space-y-4 overflow-y-auto h-full pb-20">
+          {/* PICKS 탭 */}
+          <div className={`flex-1 p-6 ${activeTab === 'picks' ? 'block' : 'hidden'}`}>
+            <div className="space-y-4 overflow-y-auto h-full">
               {picks.map(p => {
                 const ratings = p.ratings || [];
                 const avg = ratings.length > 0 ? (ratings.reduce((a, b) => a + b.score, 0) / ratings.length).toFixed(1) : 0;
                 return (
-                  <div key={p.id} className="bg-zinc-950 p-3 rounded border border-zinc-800">
-                    <p className="text-xs text-white">{p.title}</p>
-                    <p className="text-[9px] text-zinc-500 mb-2">{p.artist}</p>
-                    <div className="flex items-center gap-2">
+                  <div key={p.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+                    <p className="text-white text-sm">{p.title}</p>
+                    <p className="text-[10px] text-zinc-500 mb-2">{p.artist}</p>
+                    <div className="flex items-center gap-3">
                       <div className="flex">
                         {[1,2,3,4,5].map(s => (
                           <button key={s} onClick={() => handleRate(p.id, s)} className="text-jazzOrange/70 hover:text-jazzOrange">
@@ -121,7 +123,7 @@ function App() {
                           </button>
                         ))}
                       </div>
-                      <span className="text-[10px] text-zinc-400">({avg}/5)</span>
+                      <span className="text-[10px] text-zinc-400">평점: {avg}</span>
                     </div>
                   </div>
                 );
@@ -131,15 +133,6 @@ function App() {
 
         </div>
       </main>
-
-      {/* 모바일 하단 탭 */}
-      <div className="md:hidden flex border-t border-zinc-900 bg-[#120A0A] p-2">
-        {['archive', 'lounge', 'picks'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 text-[10px] uppercase ${activeTab === tab ? 'text-white' : 'text-zinc-600'}`}>
-            {tab}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
