@@ -1,5 +1,3 @@
-//index.html
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -44,11 +42,8 @@ tailwind.config = {
   theme: {
     extend: {
       colors: {
-        jazzBlack: '#060202',
-        jazzCard: '#120A0A',
-        jazzRed: '#FF2A1A',
-        jazzOrange: '#FFA100',
-        jazzGold: '#D4A843'
+        jazzBlack: '#060202', jazzCard: '#120A0A',
+        jazzRed: '#FF2A1A', jazzOrange: '#FFA100', jazzGold: '#D4A843'
       },
       fontFamily: { sans: ['Outfit', 'Noto Sans KR', 'sans-serif'] }
     }
@@ -59,40 +54,12 @@ tailwind.config = {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-thumb { background: #FF2A1A; border-radius: 4px; }
 .feed-scroll-container { scrollbar-width: thin; scrollbar-color: #FF2A1A transparent; }
-
-.yt-hidden-player {
-  position: absolute;
-  width: 1px; height: 1px;
-  top: 0; left: 0;
-  opacity: 0; pointer-events: none; overflow: hidden;
-}
-
-/* 별점 hover */
+.yt-hidden-player { position:absolute; width:1px; height:1px; top:0; left:0; opacity:0; pointer-events:none; overflow:hidden; }
 .star-btn { transition: transform 0.1s; }
 .star-btn:hover { transform: scale(1.2); }
-
-/* 음악 카드 shimmer */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.lounge-card-hover {
-  transition: border-color 0.2s, transform 0.2s;
-}
-.lounge-card-hover:hover {
-  border-color: rgba(255, 161, 0, 0.4);
-  transform: translateY(-1px);
-}
-
-/* 장르 태그 pulse */
-.genre-tag {
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 3px;
-  font-weight: 500;
-}
+.lounge-card-hover { transition: border-color 0.2s, transform 0.2s; }
+.lounge-card-hover:hover { border-color: rgba(255,161,0,0.4); transform: translateY(-1px); }
+.genre-tag { font-size:9px; letter-spacing:0.12em; text-transform:uppercase; padding:2px 7px; border-radius:3px; font-weight:500; }
 </style>
 </head>
 <body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen relative flex flex-col justify-between overflow-x-hidden">
@@ -108,15 +75,12 @@ function StarRating({ value, onChange, readonly = false, size = 'md' }) {
   return (
     <div className="flex gap-0.5">
       {[1,2,3,4,5].map(n => (
-        <button
-          key={n}
-          type="button"
-          disabled={readonly}
+        <button key={n} type="button" disabled={readonly}
           className={`star-btn ${sizeClass} ${readonly ? 'cursor-default' : 'cursor-pointer'}`}
-          style={{ color: n <= (hovered || value) ? '#D4A843' : '#3f3f46', background: 'none', border: 'none', padding: 0 }}
-          onMouseEnter={() => !readonly && setHovered(n)}
-          onMouseLeave={() => !readonly && setHovered(0)}
-          onClick={() => !readonly && onChange && onChange(n)}
+          style={{ color: n<=(hovered||value)?'#D4A843':'#3f3f46', background:'none', border:'none', padding:0 }}
+          onMouseEnter={()=>!readonly&&setHovered(n)}
+          onMouseLeave={()=>!readonly&&setHovered(0)}
+          onClick={()=>!readonly&&onChange&&onChange(n)}
         >
           <i className="fa-solid fa-star"></i>
         </button>
@@ -127,165 +91,78 @@ function StarRating({ value, onChange, readonly = false, size = 'md' }) {
 
 /* ─── 장르 색상 ─── */
 const GENRE_COLORS = {
-  'Jazz': '#FFA100',
-  'Classical': '#D4A843',
-  'Blues': '#4A9EBF',
-  'R&B': '#C084FC',
-  'Soul': '#F97316',
-  'Bossa Nova': '#34D399',
-  'Lo-fi': '#94A3B8',
-  'Pop': '#F472B6',
-  'Rock': '#EF4444',
-  'Electronic': '#22D3EE',
-  'Hip-hop': '#A78BFA',
-  'Folk': '#86EFAC',
-  'Other': '#6B7280',
+  'Jazz':'#FFA100','Classical':'#D4A843','Blues':'#4A9EBF','R&B':'#C084FC',
+  'Soul':'#F97316','Bossa Nova':'#34D399','Lo-fi':'#94A3B8','Pop':'#F472B6',
+  'Rock':'#EF4444','Electronic':'#22D3EE','Hip-hop':'#A78BFA','Folk':'#86EFAC','Other':'#6B7280',
 };
 const GENRES = Object.keys(GENRE_COLORS);
 
 /* ─── 음악 카드 ─── */
 function MusicCard({ item, onOpen }) {
-  const avg = item.ratings && item.ratings.length > 0
-    ? (item.ratings.reduce((s, r) => s + r.score, 0) / item.ratings.length).toFixed(1)
+  const avg = item.ratings?.length
+    ? (item.ratings.reduce((s,r)=>s+r.score,0)/item.ratings.length).toFixed(1)
     : null;
-  const genreColor = GENRE_COLORS[item.genre] || '#6B7280';
-
+  const genreColor = GENRE_COLORS[item.genre]||'#6B7280';
   return (
-    <div
-      onClick={() => onOpen(item)}
-      className="lounge-card-hover bg-zinc-950/60 rounded-xl border border-zinc-800/50 p-3.5 cursor-pointer flex gap-3 items-start"
-    >
-      {/* 커버 썸네일 */}
+    <div onClick={()=>onOpen(item)} className="lounge-card-hover bg-zinc-950/60 rounded-xl border border-zinc-800/50 p-3.5 cursor-pointer flex gap-3 items-start">
       <div className="w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-zinc-900 flex items-center justify-center">
-        {item.coverUrl ? (
-          <img src={item.coverUrl} className="w-full h-full object-cover" alt="cover" />
-        ) : (
-          <i className="fa-solid fa-music text-zinc-700 text-lg"></i>
-        )}
+        {item.coverUrl
+          ? <img src={item.coverUrl} className="w-full h-full object-cover" alt="cover" />
+          : <i className="fa-solid fa-music text-zinc-700 text-lg"></i>}
       </div>
-
-      {/* 텍스트 */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="genre-tag" style={{ background: genreColor + '22', color: genreColor, border: `1px solid ${genreColor}44` }}>{item.genre || 'Other'}</span>
+          <span className="genre-tag" style={{ background:genreColor+'22', color:genreColor, border:`1px solid ${genreColor}44`}}>{item.genre||'Other'}</span>
         </div>
         <h3 className="text-[13px] font-medium text-white truncate">{item.title}</h3>
         <p className="text-[11px] text-zinc-500 font-light truncate">{item.artist}</p>
         <div className="flex items-center gap-2 mt-1.5">
-          <StarRating value={Math.round(avg || 0)} readonly size="sm" />
+          <StarRating value={Math.round(avg||0)} readonly size="sm" />
           <span className="text-[10px] text-zinc-500 font-light">
             {avg ? `${avg} (${item.ratings.length}개)` : '아직 평가 없음'}
           </span>
         </div>
       </div>
-
-      {/* 리뷰 수 */}
       <div className="flex flex-col items-end gap-1 flex-shrink-0">
         <span className="text-[9px] text-zinc-600 font-light uppercase tracking-wider">Reviews</span>
-        <span className="text-sm font-light text-zinc-400">{(item.reviews || []).length}</span>
+        <span className="text-sm font-light text-zinc-400">{(item.reviews||[]).length}</span>
       </div>
     </div>
   );
 }
 
-/* ─── 음악 등록 모달 ─── */
-function AddMusicModal({ user, onClose, onSubmit }) {
-  const [title, setTitle] = useState('');
-  const [artist, setArtist] = useState('');
-  const [genre, setGenre] = useState('Jazz');
-  const [coverUrl, setCoverUrl] = useState('');
-  const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [desc, setDesc] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const extractYoutubeId = (url) => {
-    const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-    return m ? m[1] : null;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!title.trim() || !artist.trim()) return;
-    setLoading(true);
-    const ytId = youtubeUrl.trim() ? extractYoutubeId(youtubeUrl.trim()) : null;
-    await onSubmit({ title: title.trim(), artist: artist.trim(), genre, coverUrl: coverUrl.trim(), youtubeId: ytId, desc: desc.trim() });
-    setLoading(false);
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-      <div className="relative w-full max-w-md bg-jazzCard rounded-2xl border border-zinc-800 p-7 shadow-2xl">
-        <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white"><i className="fa-solid fa-times text-sm"></i></button>
-        <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light mb-5">Add Music to Lounge</h2>
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Title *</label>
-              <input value={title} onChange={e=>setTitle(e.target.value)} required placeholder="곡 제목" className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" />
-            </div>
-            <div>
-              <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Artist *</label>
-              <input value={artist} onChange={e=>setArtist(e.target.value)} required placeholder="아티스트" className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Genre</label>
-            <select value={genre} onChange={e=>setGenre(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange font-light">
-              {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Cover Image URL <span className="text-zinc-700 normal-case">(선택)</span></label>
-            <input value={coverUrl} onChange={e=>setCoverUrl(e.target.value)} placeholder="https://..." className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" />
-          </div>
-
-          <div>
-            <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">YouTube URL <span className="text-zinc-700 normal-case">(선택 – 감상 링크)</span></label>
-            <input value={youtubeUrl} onChange={e=>setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" />
-          </div>
-
-          <div>
-            <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Description <span className="text-zinc-700 normal-case">(선택)</span></label>
-            <textarea value={desc} onChange={e=>setDesc(e.target.value)} rows={2} placeholder="이 음악에 대해 간단히 소개해주세요..." className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange font-light resize-none"></textarea>
-          </div>
-
-          <button type="submit" disabled={loading} className="w-full bg-jazzOrange text-black text-xs py-2.5 rounded font-medium hover:bg-amber-500 transition disabled:opacity-50 mt-1">
-            {loading ? '등록 중...' : 'SUBMIT TO LOUNGE'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* ─── 음악 상세 모달 ─── */
-function MusicDetailModal({ item, user, onClose, onRate, onReview, currentUsername }) {
+/* ─── 음악 상세 모달 (리뷰/평점 수정·삭제 포함) ─── */
+function MusicDetailModal({ item, user, onClose, onRate, onReview, onEditReview, onDeleteReview, currentUsername }) {
   const [myRating, setMyRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  /* 수정 상태 */
+  const [editingReview, setEditingReview] = useState(false);
+  const [editReviewText, setEditReviewText] = useState('');
+  const [editRating, setEditRating] = useState(0);
+
   useEffect(() => {
     if (user && item.ratings) {
-      const mine = item.ratings.find(r => r.user === currentUsername);
+      const mine = item.ratings.find(r=>r.user===currentUsername);
       if (mine) setMyRating(mine.score);
+    }
+    if (user && item.reviews) {
+      const mine = item.reviews.find(r=>r.user===currentUsername);
+      if (mine) { setEditReviewText(mine.text); setEditRating(mine.score||0); }
     }
   }, [item, user, currentUsername]);
 
-  const avg = item.ratings && item.ratings.length > 0
-    ? (item.ratings.reduce((s, r) => s + r.score, 0) / item.ratings.length)
+  const avg = item.ratings?.length
+    ? item.ratings.reduce((s,r)=>s+r.score,0)/item.ratings.length
     : 0;
-
-  const genreColor = GENRE_COLORS[item.genre] || '#6B7280';
-  const alreadyReviewed = item.reviews && item.reviews.some(r => r.user === currentUsername);
+  const genreColor = GENRE_COLORS[item.genre]||'#6B7280';
+  const myReview = item.reviews?.find(r=>r.user===currentUsername);
 
   const handleRateSubmit = async () => {
     if (!user) { alert("로그인 후 평가해 주세요."); return; }
     if (!user.emailVerified) { alert("이메일 인증 후 평가할 수 있습니다."); return; }
-    if (myRating === 0) return;
+    if (myRating===0) return;
     setSubmitting(true);
     await onRate(item.id, myRating);
     setSubmitting(false);
@@ -295,12 +172,29 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, currentUserna
     e.preventDefault();
     if (!user) { alert("로그인 후 리뷰를 남겨 주세요."); return; }
     if (!user.emailVerified) { alert("이메일 인증 후 리뷰를 작성할 수 있습니다."); return; }
-    if (alreadyReviewed) { alert("이미 리뷰를 남기셨습니다."); return; }
     const text = reviewText.trim();
     if (!text) return;
     setSubmitting(true);
     await onReview(item.id, text);
     setReviewText('');
+    setSubmitting(false);
+  };
+
+  const handleEditReviewSubmit = async (e) => {
+    e.preventDefault();
+    const text = editReviewText.trim();
+    if (!text) return;
+    setSubmitting(true);
+    await onEditReview(item.id, text, editRating);
+    setEditingReview(false);
+    setSubmitting(false);
+  };
+
+  const handleDeleteMyReview = async () => {
+    if (!window.confirm('내 리뷰와 평점을 삭제하겠습니까?')) return;
+    setSubmitting(true);
+    await onDeleteReview(item.id);
+    setMyRating(0);
     setSubmitting(false);
   };
 
@@ -314,33 +208,27 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, currentUserna
         {/* 왼쪽: 커버 + 기본 정보 */}
         <div className="w-full md:w-[42%] flex-shrink-0 flex flex-col bg-black">
           <div className="aspect-square w-full bg-zinc-950 flex items-center justify-center overflow-hidden">
-            {item.coverUrl ? (
-              <img src={item.coverUrl} className="w-full h-full object-cover" alt="cover" />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-zinc-900 to-black">
-                <i className="fa-solid fa-music text-4xl text-zinc-700"></i>
-                <span className="text-[10px] text-zinc-600 uppercase tracking-widest">No Cover Art</span>
-              </div>
-            )}
+            {item.coverUrl
+              ? <img src={item.coverUrl} className="w-full h-full object-cover" alt="cover" />
+              : <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-zinc-900 to-black">
+                  <i className="fa-solid fa-music text-4xl text-zinc-700"></i>
+                  <span className="text-[10px] text-zinc-600 uppercase tracking-widest">No Cover Art</span>
+                </div>
+            }
           </div>
-
           <div className="p-5 flex flex-col gap-3 border-t border-zinc-900/60">
             <div>
-              <span className="genre-tag mb-2 inline-block" style={{ background: genreColor + '22', color: genreColor, border: `1px solid ${genreColor}44` }}>{item.genre || 'Other'}</span>
+              <span className="genre-tag mb-2 inline-block" style={{background:genreColor+'22',color:genreColor,border:`1px solid ${genreColor}44`}}>{item.genre||'Other'}</span>
               <h2 className="text-lg font-light text-white mt-1">{item.title}</h2>
               <p className="text-xs text-zinc-500 font-light">{item.artist}</p>
             </div>
-
-            {/* 평균 별점 */}
             <div className="flex items-center gap-3 py-2 border-t border-zinc-900/40">
               <div>
-                <div className="text-2xl font-light text-jazzGold">{avg > 0 ? avg.toFixed(1) : '—'}</div>
-                <div className="text-[9px] text-zinc-600 uppercase tracking-widest">{item.ratings?.length || 0}명 평가</div>
+                <div className="text-2xl font-light text-jazzGold">{avg>0?avg.toFixed(1):'—'}</div>
+                <div className="text-[9px] text-zinc-600 uppercase tracking-widest">{item.ratings?.length||0}명 평가</div>
               </div>
               <StarRating value={Math.round(avg)} readonly size="md" />
             </div>
-
-            {/* YouTube 링크 */}
             {item.youtubeId && (
               <a href={`https://youtube.com/watch?v=${item.youtubeId}`} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-2 text-[11px] text-zinc-400 hover:text-jazzRed transition border border-zinc-800 rounded px-3 py-2 bg-zinc-950/60">
@@ -349,11 +237,7 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, currentUserna
                 <i className="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto"></i>
               </a>
             )}
-
-            {item.desc && (
-              <p className="text-[11px] text-zinc-500 font-light leading-relaxed border-t border-zinc-900/40 pt-2">{item.desc}</p>
-            )}
-
+            {item.desc && <p className="text-[11px] text-zinc-500 font-light leading-relaxed border-t border-zinc-900/40 pt-2">{item.desc}</p>}
             <p className="text-[9px] text-zinc-700 font-light">by {item.submittedBy} · {item.createdAt ? new Date(item.createdAt).toLocaleDateString('ko-KR') : ''}</p>
           </div>
         </div>
@@ -361,14 +245,20 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, currentUserna
         {/* 오른쪽: 평점 + 리뷰 */}
         <div className="flex flex-col w-full md:w-[58%] bg-jazzBlack overflow-hidden">
 
-          {/* 내 별점 남기기 */}
+          {/* 내 별점 */}
           <div className="p-4 border-b border-zinc-900/50 flex-shrink-0">
             <p className="text-[9px] tracking-widest text-zinc-500 uppercase mb-2.5">나의 평가</p>
             <div className="flex items-center gap-3">
-              <StarRating value={myRating} onChange={setMyRating} size="lg" readonly={!user || !user.emailVerified} />
-              {myRating > 0 && (
-                <button onClick={handleRateSubmit} disabled={submitting} className="text-[10px] bg-jazzGold/20 border border-jazzGold/40 text-jazzGold px-3 py-1 rounded hover:bg-jazzGold/30 transition disabled:opacity-50">
-                  {submitting ? '...' : '평가 저장'}
+              <StarRating
+                value={editingReview ? editRating : myRating}
+                onChange={editingReview ? setEditRating : setMyRating}
+                size="lg"
+                readonly={!user || !user.emailVerified}
+              />
+              {!editingReview && myRating>0 && (
+                <button onClick={handleRateSubmit} disabled={submitting}
+                  className="text-[10px] bg-jazzGold/20 border border-jazzGold/40 text-jazzGold px-3 py-1 rounded hover:bg-jazzGold/30 transition disabled:opacity-50">
+                  {submitting?'...':'평가 저장'}
                 </button>
               )}
             </div>
@@ -377,49 +267,90 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, currentUserna
 
           {/* 리뷰 목록 */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2.5 feed-scroll-container min-h-0">
-            <p className="text-[9px] tracking-widest text-zinc-500 uppercase mb-3">Reviews <span className="text-zinc-700">({(item.reviews || []).length})</span></p>
-            {(item.reviews || []).length === 0 ? (
-              <div className="flex items-center justify-center h-24 text-[10px] text-zinc-700 uppercase tracking-widest">
-                첫 번째 리뷰를 남겨보세요.
-              </div>
-            ) : (
-              [...(item.reviews || [])].reverse().map((rv, i) => (
-                <div key={i} className="bg-zinc-950/50 rounded-lg border border-zinc-900/40 p-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-medium text-jazzOrange">{rv.user}</span>
-                      {rv.score > 0 && <StarRating value={rv.score} readonly size="sm" />}
+            <p className="text-[9px] tracking-widest text-zinc-500 uppercase mb-3">
+              Reviews <span className="text-zinc-700">({(item.reviews||[]).length})</span>
+            </p>
+            {(item.reviews||[]).length===0
+              ? <div className="flex items-center justify-center h-24 text-[10px] text-zinc-700 uppercase tracking-widest">첫 번째 리뷰를 남겨보세요.</div>
+              : [...(item.reviews||[])].reverse().map((rv,i) => {
+                  const isMine = rv.user === currentUsername;
+                  return (
+                    <div key={i} className={`rounded-lg border p-3 ${isMine?'bg-zinc-900/60 border-jazzOrange/20':'bg-zinc-950/50 border-zinc-900/40'}`}>
+                      <div className="flex items-start justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-medium text-jazzOrange">{rv.user}</span>
+                          {rv.score>0 && <StarRating value={rv.score} readonly size="sm" />}
+                          {isMine && <span className="text-[8px] bg-jazzOrange/15 text-jazzOrange px-1 py-0.5 rounded">나</span>}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[8px] text-zinc-700 font-light">{rv.createdAt?new Date(rv.createdAt).toLocaleDateString('ko-KR'):''}</span>
+                          {isMine && (
+                            <div className="flex gap-1">
+                              <button onClick={()=>{setEditingReview(true);setEditReviewText(rv.text);setEditRating(rv.score||myRating);}}
+                                className="text-[9px] text-zinc-500 hover:text-jazzOrange transition px-1">수정</button>
+                              <button onClick={handleDeleteMyReview}
+                                className="text-[9px] text-zinc-500 hover:text-jazzRed transition px-1">삭제</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-zinc-300 font-light leading-relaxed">{rv.text}</p>
                     </div>
-                    <span className="text-[8px] text-zinc-700 font-light">{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString('ko-KR') : ''}</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-300 font-light leading-relaxed">{rv.text}</p>
-                </div>
-              ))
-            )}
+                  );
+              })
+            }
           </div>
 
-          {/* 리뷰 작성 */}
-          <form onSubmit={handleReviewSubmit} className="p-3 border-t border-zinc-900/50 bg-zinc-950/30 flex-shrink-0">
-            {alreadyReviewed ? (
-              <p className="text-[10px] text-zinc-600 text-center py-1.5">이미 리뷰를 남기셨습니다.</p>
+          {/* 리뷰 작성 / 수정 폼 */}
+          <div className="p-3 border-t border-zinc-900/50 bg-zinc-950/30 flex-shrink-0">
+            {/* 수정 모드 */}
+            {editingReview ? (
+              <form onSubmit={handleEditReviewSubmit} className="space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[9px] text-jazzOrange uppercase tracking-widest">리뷰 수정</p>
+                  <button type="button" onClick={()=>setEditingReview(false)} className="text-[9px] text-zinc-600 hover:text-zinc-400">취소</button>
+                </div>
+                <div className="mb-1">
+                  <StarRating value={editRating} onChange={setEditRating} size="md" />
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editReviewText}
+                    onChange={e=>setEditReviewText(e.target.value)}
+                    className="flex-grow bg-zinc-950 border border-jazzOrange/40 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzOrange font-light"
+                    placeholder="수정할 내용을 입력하세요..."
+                  />
+                  <button type="submit" disabled={submitting}
+                    className="bg-jazzOrange text-black text-[11px] px-3 py-1.5 rounded font-medium hover:bg-amber-500 transition disabled:opacity-40">
+                    {submitting?'...':'저장'}
+                  </button>
+                </div>
+              </form>
+            ) : myReview ? (
+              /* 이미 리뷰가 있고 수정 모드 아님 */
+              <p className="text-[10px] text-zinc-600 text-center py-1.5">
+                리뷰를 수정하려면 위 리뷰의 <span className="text-zinc-400">수정</span> 버튼을 눌러주세요.
+              </p>
             ) : (
-              <div className="flex gap-2">
+              /* 새 리뷰 작성 */
+              <form onSubmit={handleReviewSubmit} className="flex gap-2">
                 <input
                   type="text"
                   placeholder={user ? "이 음악에 대한 리뷰를 남겨주세요..." : "로그인 후 리뷰를 작성할 수 있습니다."}
                   value={reviewText}
-                  onChange={e => setReviewText(e.target.value)}
-                  disabled={!user || !user.emailVerified}
+                  onChange={e=>setReviewText(e.target.value)}
+                  disabled={!user||!user.emailVerified}
                   className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzOrange disabled:opacity-40 font-light"
                 />
-                <button type="submit" disabled={!user || !user.emailVerified || submitting} className="bg-jazzOrange text-black text-[11px] px-3 py-1.5 rounded font-medium hover:bg-amber-500 transition disabled:opacity-40">
+                <button type="submit" disabled={!user||!user.emailVerified||submitting}
+                  className="bg-jazzOrange text-black text-[11px] px-3 py-1.5 rounded font-medium hover:bg-amber-500 transition disabled:opacity-40">
                   게시
                 </button>
-              </div>
+              </form>
             )}
-          </form>
+          </div>
         </div>
-
       </div>
     </div>
   );
@@ -434,7 +365,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [selectedFeed, setSelectedFeed] = useState(null);
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [commentInputs, setCommentInputs] = useState({});
   const audioRef = useRef(null);
 
@@ -457,47 +387,41 @@ function App() {
   /* ─── Music Lounge 상태 ─── */
   const [loungeItems, setLoungeItems] = useState([]);
   const [loungeLoading, setLoungeLoading] = useState(true);
-  const [showAddMusic, setShowAddMusic] = useState(false);
   const [selectedMusic, setSelectedMusic] = useState(null);
   const [loungeFilter, setLoungeFilter] = useState('All');
-  const [loungeSort, setLoungeSort] = useState('recent'); // 'recent' | 'rating' | 'reviews'
+  const [loungeSort, setLoungeSort] = useState('recent');
   const [loungeSearch, setLoungeSearch] = useState('');
 
   useEffect(() => {
-    let unsubFeeds, unsubChats, unsubLounge;
+    let unsubFeeds, unsubChats, unsubLounge, unsubAuth;
 
     const initFirestore = () => {
       const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
 
-      const qFeeds = query(collection(db, 'feeds'), orderBy('createdAt', 'desc'));
-      unsubFeeds = onSnapshot(qFeeds, (snapshot) => {
-        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      unsubFeeds = onSnapshot(query(collection(db,'feeds'), orderBy('createdAt','desc')), snap => {
+        const data = snap.docs.map(d=>({id:d.id,...d.data()}));
         setFeeds(data);
         setLoading(false);
-        setSelectedFeed(prev => prev ? (data.find(f => f.id === prev.id) || null) : null);
+        setSelectedFeed(prev => prev ? (data.find(f=>f.id===prev.id)||null) : null);
       });
 
-      const qChats = query(collection(db, 'chats'), orderBy('createdAt', 'asc'));
-      unsubChats = onSnapshot(qChats, (snapshot) => {
-        setChatMessages(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      unsubChats = onSnapshot(query(collection(db,'chats'), orderBy('createdAt','asc')), snap => {
+        setChatMessages(snap.docs.map(d=>({id:d.id,...d.data()})));
       });
 
-      const qLounge = query(collection(db, 'music_lounge'), orderBy('createdAt', 'desc'));
-      unsubLounge = onSnapshot(qLounge, (snapshot) => {
-        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      unsubLounge = onSnapshot(query(collection(db,'music_lounge'), orderBy('createdAt','desc')), snap => {
+        const data = snap.docs.map(d=>({id:d.id,...d.data()}));
         setLoungeItems(data);
         setLoungeLoading(false);
-        // 열려있는 모달 실시간 갱신
-        setSelectedMusic(prev => prev ? (data.find(m => m.id === prev.id) || null) : null);
+        setSelectedMusic(prev => prev ? (data.find(m=>m.id===prev.id)||null) : null);
       });
     };
 
     const initAuth = () => {
       const { auth, onAuthStateChanged } = window.__auth;
-      return onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
+      return onAuthStateChanged(auth, u => setUser(u));
     };
 
-    let unsubAuth;
     if (window.__firestore && window.__auth) {
       initFirestore();
       unsubAuth = initAuth();
@@ -517,50 +441,53 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior:'smooth' });
   }, [chatMessages, activeTab]);
 
   const currentUsername = user ? user.email.split('@')[0] : '';
 
-  /* ─── Lounge: 음악 등록 ─── */
-  const handleAddMusicSubmit = async ({ title, artist, genre, coverUrl, youtubeId, desc }) => {
-    const { db, collection, addDoc } = window.__firestore;
-    await addDoc(collection(db, 'music_lounge'), {
-      title, artist, genre,
-      coverUrl: coverUrl || '',
-      youtubeId: youtubeId || null,
-      desc: desc || '',
-      submittedBy: currentUsername,
-      createdAt: Date.now(),
-      ratings: [],
-      reviews: [],
-    });
-  };
-
   /* ─── Lounge: 별점 저장 (upsert) ─── */
   const handleRate = async (musicId, score) => {
     const { db, doc, updateDoc } = window.__firestore;
-    const item = loungeItems.find(m => m.id === musicId);
+    const item = loungeItems.find(m=>m.id===musicId);
     if (!item) return;
-    const existing = (item.ratings || []).filter(r => r.user !== currentUsername);
-    const newRatings = [...existing, { user: currentUsername, score }];
-    await updateDoc(doc(db, 'music_lounge', musicId), { ratings: newRatings });
+    const newRatings = [...(item.ratings||[]).filter(r=>r.user!==currentUsername), { user:currentUsername, score }];
+    await updateDoc(doc(db,'music_lounge',musicId), { ratings:newRatings });
   };
 
   /* ─── Lounge: 리뷰 작성 ─── */
   const handleReview = async (musicId, text) => {
     const { db, doc, updateDoc } = window.__firestore;
-    const item = loungeItems.find(m => m.id === musicId);
+    const item = loungeItems.find(m=>m.id===musicId);
     if (!item) return;
-    const myRating = (item.ratings || []).find(r => r.user === currentUsername);
-    const newReview = {
-      user: currentUsername,
-      text,
-      score: myRating ? myRating.score : 0,
-      createdAt: Date.now(),
-    };
-    const existing = item.reviews || [];
-    await updateDoc(doc(db, 'music_lounge', musicId), { reviews: [...existing, newReview] });
+    const myRating = (item.ratings||[]).find(r=>r.user===currentUsername);
+    const newReview = { user:currentUsername, text, score:myRating?myRating.score:0, createdAt:Date.now() };
+    await updateDoc(doc(db,'music_lounge',musicId), { reviews:[...(item.reviews||[]), newReview] });
+  };
+
+  /* ─── Lounge: 리뷰 수정 ─── */
+  const handleEditReview = async (musicId, text, score) => {
+    const { db, doc, updateDoc } = window.__firestore;
+    const item = loungeItems.find(m=>m.id===musicId);
+    if (!item) return;
+    const updatedReviews = (item.reviews||[]).map(r =>
+      r.user === currentUsername ? { ...r, text, score, editedAt: Date.now() } : r
+    );
+    const updatedRatings = score > 0
+      ? [...(item.ratings||[]).filter(r=>r.user!==currentUsername), { user:currentUsername, score }]
+      : item.ratings;
+    await updateDoc(doc(db,'music_lounge',musicId), { reviews:updatedReviews, ratings:updatedRatings });
+  };
+
+  /* ─── Lounge: 내 리뷰 + 평점 삭제 ─── */
+  const handleDeleteReview = async (musicId) => {
+    const { db, doc, updateDoc } = window.__firestore;
+    const item = loungeItems.find(m=>m.id===musicId);
+    if (!item) return;
+    await updateDoc(doc(db,'music_lounge',musicId), {
+      reviews: (item.reviews||[]).filter(r=>r.user!==currentUsername),
+      ratings: (item.ratings||[]).filter(r=>r.user!==currentUsername),
+    });
   };
 
   /* ─── Lounge: 필터 + 정렬 + 검색 ─── */
@@ -573,14 +500,14 @@ function App() {
       }
       return true;
     })
-    .sort((a, b) => {
-      if (loungeSort === 'rating') {
+    .sort((a,b) => {
+      if (loungeSort==='rating') {
         const avgA = a.ratings?.length ? a.ratings.reduce((s,r)=>s+r.score,0)/a.ratings.length : 0;
         const avgB = b.ratings?.length ? b.ratings.reduce((s,r)=>s+r.score,0)/b.ratings.length : 0;
-        return avgB - avgA;
+        return avgB-avgA;
       }
-      if (loungeSort === 'reviews') return (b.reviews?.length||0) - (a.reviews?.length||0);
-      return b.createdAt - a.createdAt;
+      if (loungeSort==='reviews') return (b.reviews?.length||0)-(a.reviews?.length||0);
+      return b.createdAt-a.createdAt;
     });
 
   /* ─── 채팅 전송 ─── */
@@ -591,7 +518,7 @@ function App() {
     const text = chatInput.trim();
     if (!text) return;
     const { db, collection, addDoc } = window.__firestore;
-    await addDoc(collection(db, 'chats'), { user: currentUsername, text, createdAt: Date.now() }).catch(console.error);
+    await addDoc(collection(db,'chats'), { user:currentUsername, text, createdAt:Date.now() }).catch(console.error);
     setChatInput('');
   };
 
@@ -600,25 +527,25 @@ function App() {
     e.preventDefault();
     if (!user) { alert("방명록을 남기려면 로그인해 주세요."); setAuthMode('login'); setShowAuthModal(true); return; }
     if (!user.emailVerified) { alert("이메일 인증 후 참여 가능합니다."); return; }
-    const text = (commentInputs[feedId] || "").trim();
+    const text = (commentInputs[feedId]||"").trim();
     if (!text) return;
     const { db, doc, updateDoc, arrayUnion } = window.__firestore;
-    await updateDoc(doc(db, 'feeds', feedId), { comments: arrayUnion({ user: currentUsername, text, createdAt: Date.now() }) }).catch(console.error);
-    setCommentInputs({ ...commentInputs, [feedId]: "" });
+    await updateDoc(doc(db,'feeds',feedId), { comments:arrayUnion({user:currentUsername,text,createdAt:Date.now()}) }).catch(console.error);
+    setCommentInputs({...commentInputs,[feedId]:""});
   };
 
   /* ─── Image slide ─── */
-  const nextImage = (n) => setCurrentImgIdx(p => (p+1)%n);
-  const prevImage = (n) => setCurrentImgIdx(p => (p-1+n)%n);
-  const handleTouchStart = (e) => { touchStartX.current = e.touches?.[0].clientX ?? e.clientX; touchEndX.current = touchStartX.current; isDragging.current = true; };
-  const handleTouchMove = (e) => { if (isDragging.current) touchEndX.current = e.touches?.[0].clientX ?? e.clientX; };
-  const handleTouchEnd = (n) => { if (!isDragging.current) return; isDragging.current = false; const d = touchStartX.current - touchEndX.current; if (Math.abs(d)>40) d>0 ? nextImage(n) : prevImage(n); };
+  const nextImage = (n) => setCurrentImgIdx(p=>(p+1)%n);
+  const prevImage = (n) => setCurrentImgIdx(p=>(p-1+n)%n);
+  const handleTouchStart = (e) => { touchStartX.current=e.touches?.[0].clientX??e.clientX; touchEndX.current=touchStartX.current; isDragging.current=true; };
+  const handleTouchMove = (e) => { if(isDragging.current) touchEndX.current=e.touches?.[0].clientX??e.clientX; };
+  const handleTouchEnd = (n) => { if(!isDragging.current)return; isDragging.current=false; const d=touchStartX.current-touchEndX.current; if(Math.abs(d)>40) d>0?nextImage(n):prevImage(n); };
 
   /* ─── Auth ─── */
-  const handleSignIn = (e) => { e.preventDefault(); const { auth, signInWithEmailAndPassword } = window.__auth; signInWithEmailAndPassword(auth, authEmail, authPassword).then(uc => { if (!uc.user.emailVerified) alert("이메일 인증을 먼저 완료해 주세요."); else alert("재즈바에 입장하셨습니다."); closeAuthModal(); }).catch(() => alert("이메일 또는 비밀번호를 다시 확인하세요.")); };
-  const handleSignUp = (e) => { e.preventDefault(); const { auth, createUserWithEmailAndPassword, sendEmailVerification } = window.__auth; createUserWithEmailAndPassword(auth, authEmail, authPassword).then(uc => { sendEmailVerification(uc.user).then(() => { alert("인증 메일을 발송했습니다. 인증 완료 후 로그인해 주세요."); window.__auth.signOut(auth); setAuthMode('login'); }); }).catch(err => alert(`회원가입 실패: ${err.message}`)); };
-  const handleFindPassword = (e) => { e.preventDefault(); const { auth, sendPasswordResetEmail } = window.__auth; sendPasswordResetEmail(auth, authEmail).then(() => { alert("비밀번호 재설정 링크를 발송했습니다."); setAuthMode('login'); }).catch(() => alert("해당 이메일 계정을 찾을 수 없습니다.")); };
-  const handleSignOut = () => { const { auth, signOut } = window.__auth; signOut(auth).then(() => alert("로그아웃 되었습니다.")); };
+  const handleSignIn = (e) => { e.preventDefault(); const {auth,signInWithEmailAndPassword}=window.__auth; signInWithEmailAndPassword(auth,authEmail,authPassword).then(uc=>{if(!uc.user.emailVerified)alert("이메일 인증을 먼저 완료해 주세요.");else alert("재즈바에 입장하셨습니다.");closeAuthModal();}).catch(()=>alert("이메일 또는 비밀번호를 다시 확인하세요.")); };
+  const handleSignUp = (e) => { e.preventDefault(); const {auth,createUserWithEmailAndPassword,sendEmailVerification}=window.__auth; createUserWithEmailAndPassword(auth,authEmail,authPassword).then(uc=>{sendEmailVerification(uc.user).then(()=>{alert("인증 메일을 발송했습니다. 인증 완료 후 로그인해 주세요.");window.__auth.signOut(auth);setAuthMode('login');});}).catch(err=>alert(`회원가입 실패: ${err.message}`)); };
+  const handleFindPassword = (e) => { e.preventDefault(); const {auth,sendPasswordResetEmail}=window.__auth; sendPasswordResetEmail(auth,authEmail).then(()=>{alert("비밀번호 재설정 링크를 발송했습니다.");setAuthMode('login');}).catch(()=>alert("해당 이메일 계정을 찾을 수 없습니다.")); };
+  const handleSignOut = () => { const {auth,signOut}=window.__auth; signOut(auth).then(()=>alert("로그아웃 되었습니다.")); };
   const closeAuthModal = () => { setShowAuthModal(false); setAuthEmail(''); setAuthPassword(''); };
 
   return (
@@ -642,7 +569,7 @@ function App() {
               <button onClick={handleSignOut} className="text-[10px] tracking-wider text-zinc-500 hover:text-white transition uppercase">Logout</button>
             </div>
           ) : (
-            <button onClick={() => { setAuthMode('login'); setShowAuthModal(true); }} className="text-[10px] tracking-wider text-jazzOrange hover:text-white transition uppercase">Login</button>
+            <button onClick={()=>{setAuthMode('login');setShowAuthModal(true);}} className="text-[10px] tracking-wider text-jazzOrange hover:text-white transition uppercase">Login</button>
           )}
         </div>
       </header>
@@ -651,8 +578,8 @@ function App() {
       <main className="flex-1 w-full flex justify-center p-3 md:p-4 z-10 pb-32 md:pb-4">
         <div className="w-full max-w-[980px] bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 shadow-2xl flex flex-col md:flex-row md:h-[600px] overflow-hidden">
 
-          {/* ── 1. Sound Archive ─────────────────── */}
-          <div className={`w-full md:w-[60%] p-4 flex flex-col h-full md:border-r border-zinc-900/60 ${activeTab === 'archive' ? 'flex' : 'hidden md:flex'}`}>
+          {/* ── 1. Sound Archive ─── */}
+          <div className={`w-full md:w-[60%] p-4 flex flex-col h-full md:border-r border-zinc-900/60 ${activeTab==='archive'?'flex':'hidden md:flex'}`}>
             <div className="mb-3 px-1 flex items-center gap-2 flex-shrink-0">
               <span className="text-[10px] tracking-widest text-zinc-400 uppercase font-light">SOUND ARCHIVE</span>
             </div>
@@ -664,26 +591,28 @@ function App() {
                     <span>LOADING SOUNDS...</span>
                   </div>
                 )}
-                {!loading && feeds.map((feed) => {
+                {!loading && feeds.map(feed => {
                   const imgList = feed.coverImage ? feed.coverImage.split('\n').filter(Boolean) : [];
-                  const hasImg = imgList.length > 0;
+                  const hasImg = imgList.length>0;
                   const hasVideo = !!feed.youtubeId;
                   return (
-                    <div key={feed.id} onClick={() => { setSelectedFeed(feed); setCurrentImgIdx(0); }} className="group relative aspect-square w-full bg-zinc-950 rounded-xl overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 active:scale-[0.98] transition-all duration-200">
-                      {hasImg ? <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt="cover" /> : hasVideo ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black p-2 text-center">
-                          <i className="fa-brands fa-youtube text-xl text-jazzRed mb-1"></i>
-                          <span className="text-[8px] uppercase tracking-widest text-zinc-500 font-medium">YOUTUBE Loop</span>
-                        </div>
-                      ) : (
-                        <div className="w-full h-full p-3 flex items-center justify-center text-center bg-zinc-900 text-[10px] font-light text-zinc-400 leading-relaxed overflow-hidden">
-                          <p className="line-clamp-4">{feed.bio}</p>
-                        </div>
-                      )}
-                      {imgList.length > 1 && <div className="absolute top-2 right-2 text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
+                    <div key={feed.id} onClick={()=>{setSelectedFeed(feed);setCurrentImgIdx(0);}} className="group relative aspect-square w-full bg-zinc-950 rounded-xl overflow-hidden cursor-pointer border border-zinc-800/40 hover:border-jazzRed/50 active:scale-[0.98] transition-all duration-200">
+                      {hasImg ? <img src={imgList[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt="cover" />
+                        : hasVideo ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black p-2 text-center">
+                            <i className="fa-brands fa-youtube text-xl text-jazzRed mb-1"></i>
+                            <span className="text-[8px] uppercase tracking-widest text-zinc-500 font-medium">YOUTUBE Loop</span>
+                          </div>
+                        ) : (
+                          <div className="w-full h-full p-3 flex items-center justify-center text-center bg-zinc-900 text-[10px] font-light text-zinc-400 leading-relaxed overflow-hidden">
+                            <p className="line-clamp-4">{feed.bio}</p>
+                          </div>
+                        )
+                      }
+                      {imgList.length>1 && <div className="absolute top-2 right-2 text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-zinc-400"><i className="fa-solid fa-layer-group"></i></div>}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-3 opacity-95 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
-                        <h3 className="text-[11px] text-white truncate font-medium capitalize">{feed.title || 'Untitled'}</h3>
-                        <p className="text-[9px] text-jazzOrange truncate font-light mt-0.5">{feed.artistName || 'Phill Session'}</p>
+                        <h3 className="text-[11px] text-white truncate font-medium capitalize">{feed.title||'Untitled'}</h3>
+                        <p className="text-[9px] text-jazzOrange truncate font-light mt-0.5">{feed.artistName||'Phill Session'}</p>
                       </div>
                     </div>
                   );
@@ -692,37 +621,22 @@ function App() {
             </div>
           </div>
 
-          {/* ── 2. Music Lounge ──────────────────── */}
-          <div className={`w-full flex flex-col h-[calc(100vh-220px)] md:h-full bg-black/10 ${activeTab === 'lounge' ? 'flex' : 'hidden'} md:hidden`}
-               style={{ display: activeTab === 'lounge' ? 'flex' : undefined }}>
-            {/* (모바일 전용 – 데스크탑은 아래 별도 렌더) */}
-          </div>
+          {/* ── 2. Music Lounge + Chat (오른쪽 패널) ─── */}
+          <div className={`w-full md:w-[40%] flex flex-col bg-black/15 overflow-hidden ${activeTab==='lounge'?'flex':activeTab==='archive'?'hidden md:flex':'hidden md:flex'}`}
+               style={{ height: activeTab==='lounge' ? 'calc(100vh - 220px)' : undefined }}>
 
-          {/* ── 2b. Music Lounge (데스크탑 + 모바일 통합) ─ */}
-          {/* 모바일: activeTab 조건, 데스크탑: 항상 보임 (숨김 없음) */}
-          <div className={`
-            w-full md:w-[40%] flex flex-col bg-black/15 overflow-hidden
-            ${activeTab === 'lounge' ? 'flex' : 'hidden md:flex'}
-          `} style={{ height: activeTab === 'lounge' ? 'calc(100vh - 220px)' : undefined }}>
-
-            {/* 탭 헤더 – 데스크탑에서 Lounge / Chat 서브탭 */}
+            {/* 서브탭 헤더 */}
             <div className="p-3 border-b border-zinc-900/50 bg-black/20 flex-shrink-0">
-              {/* 데스크탑 서브탭 */}
-              <div className="hidden md:flex gap-1 mb-0">
-                <button
-                  onClick={() => setActiveTab('lounge')}
-                  className={`text-[9px] tracking-widest uppercase px-3 py-1 rounded transition ${activeTab === 'lounge' || activeTab === 'archive' ? 'bg-jazzOrange/20 text-jazzOrange border border-jazzOrange/30' : 'text-zinc-600'}`}
-                >
+              <div className="hidden md:flex gap-1">
+                <button onClick={()=>setActiveTab('lounge')}
+                  className={`text-[9px] tracking-widest uppercase px-3 py-1 rounded transition ${activeTab==='lounge'||activeTab==='archive'?'bg-jazzOrange/20 text-jazzOrange border border-jazzOrange/30':'text-zinc-600'}`}>
                   <i className="fa-solid fa-headphones mr-1"></i>Music Lounge
                 </button>
-                <button
-                  onClick={() => setActiveTab('chat')}
-                  className={`text-[9px] tracking-widest uppercase px-3 py-1 rounded transition ${activeTab === 'chat' ? 'bg-jazzRed/20 text-jazzRed border border-jazzRed/30' : 'text-zinc-600'}`}
-                >
+                <button onClick={()=>setActiveTab('chat')}
+                  className={`text-[9px] tracking-widest uppercase px-3 py-1 rounded transition ${activeTab==='chat'?'bg-jazzRed/20 text-jazzRed border border-jazzRed/30':'text-zinc-600'}`}>
                   <span className="w-1 h-1 rounded-full bg-jazzRed inline-block mr-1 animate-pulse"></span>Lounge Chat
                 </button>
               </div>
-              {/* 모바일: 헤더만 */}
               <div className="md:hidden flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <i className="fa-solid fa-headphones text-jazzOrange text-xs"></i>
@@ -732,61 +646,37 @@ function App() {
             </div>
 
             {/* Music Lounge 콘텐츠 */}
-            <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${(activeTab === 'lounge' || activeTab === 'archive') ? 'flex' : 'hidden'}`}>
-              {/* 툴바 */}
+            <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${(activeTab==='lounge'||activeTab==='archive')?'flex':'hidden'}`}>
+              {/* 툴바: 등록 버튼 없음 (관리자 전용) */}
               <div className="px-3 py-2.5 border-b border-zinc-900/40 flex-shrink-0 space-y-2">
-                {/* 검색 + 등록 버튼 */}
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <i className="fa-solid fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600 text-[10px]"></i>
-                    <input
-                      type="text"
-                      placeholder="곡명 또는 아티스트 검색..."
-                      value={loungeSearch}
-                      onChange={e => setLoungeSearch(e.target.value)}
+                    <input type="text" placeholder="곡명 또는 아티스트 검색..."
+                      value={loungeSearch} onChange={e=>setLoungeSearch(e.target.value)}
                       className="w-full bg-zinc-950/70 border border-zinc-800 rounded pl-7 pr-3 py-1.5 text-[11px] text-white focus:outline-none focus:border-jazzOrange font-light"
                     />
                   </div>
-                  <button
-                    onClick={() => {
-                      if (!user) { alert("음악을 등록하려면 로그인해 주세요."); setAuthMode('login'); setShowAuthModal(true); return; }
-                      if (!user.emailVerified) { alert("이메일 인증 후 음악을 등록할 수 있습니다."); return; }
-                      setShowAddMusic(true);
-                    }}
-                    className="flex items-center gap-1.5 bg-jazzOrange/15 border border-jazzOrange/30 text-jazzOrange text-[10px] px-2.5 py-1.5 rounded hover:bg-jazzOrange/25 transition flex-shrink-0"
-                  >
-                    <i className="fa-solid fa-plus text-[9px]"></i>
-                    <span className="hidden sm:inline">등록</span>
-                  </button>
                 </div>
-
                 {/* 장르 필터 */}
-                <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
-                  {['All', ...GENRES].map(g => (
-                    <button
-                      key={g}
-                      onClick={() => setLoungeFilter(g)}
-                      className={`flex-shrink-0 text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition ${loungeFilter === g ? 'bg-jazzOrange text-black font-medium' : 'bg-zinc-900/60 text-zinc-500 hover:text-zinc-300'}`}
-                    >
+                <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{scrollbarWidth:'none'}}>
+                  {['All',...GENRES].map(g=>(
+                    <button key={g} onClick={()=>setLoungeFilter(g)}
+                      className={`flex-shrink-0 text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition ${loungeFilter===g?'bg-jazzOrange text-black font-medium':'bg-zinc-900/60 text-zinc-500 hover:text-zinc-300'}`}>
                       {g}
                     </button>
                   ))}
                 </div>
-
                 {/* 정렬 */}
                 <div className="flex gap-2">
-                  {[['recent','최신순'],['rating','별점순'],['reviews','리뷰순']].map(([val, label]) => (
-                    <button
-                      key={val}
-                      onClick={() => setLoungeSort(val)}
-                      className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition ${loungeSort === val ? 'text-white bg-zinc-700' : 'text-zinc-600 hover:text-zinc-400'}`}
-                    >
+                  {[['recent','최신순'],['rating','별점순'],['reviews','리뷰순']].map(([val,label])=>(
+                    <button key={val} onClick={()=>setLoungeSort(val)}
+                      className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition ${loungeSort===val?'text-white bg-zinc-700':'text-zinc-600 hover:text-zinc-400'}`}>
                       {label}
                     </button>
                   ))}
                 </div>
               </div>
-
               {/* 음악 목록 */}
               <div className="flex-1 overflow-y-auto p-3 space-y-2 feed-scroll-container">
                 {loungeLoading && (
@@ -795,66 +685,62 @@ function App() {
                     <span>Loading Lounge...</span>
                   </div>
                 )}
-                {!loungeLoading && filteredLounge.length === 0 && (
+                {!loungeLoading && filteredLounge.length===0 && (
                   <div className="flex flex-col items-center justify-center h-32 text-zinc-700 text-[10px] uppercase tracking-widest gap-2 text-center">
                     <i className="fa-solid fa-music text-zinc-800 text-2xl"></i>
-                    <span>등록된 음악이 없습니다.<br/>첫 번째 음악을 추천해 보세요.</span>
+                    <span>등록된 음악이 없습니다.</span>
                   </div>
                 )}
-                {!loungeLoading && filteredLounge.map(item => (
+                {!loungeLoading && filteredLounge.map(item=>(
                   <MusicCard key={item.id} item={item} onOpen={setSelectedMusic} />
                 ))}
               </div>
             </div>
 
-            {/* Lounge Chat 콘텐츠 (데스크탑) */}
-            <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${activeTab === 'chat' ? 'flex' : 'hidden'}`}>
+            {/* Lounge Chat 콘텐츠 */}
+            <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${activeTab==='chat'?'flex':'hidden'}`}>
               <div className="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-900/30 flex-shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse"></span>
                 <span className="text-[9px] tracking-widest text-zinc-400 uppercase">Live Chat</span>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3 feed-scroll-container">
-                {chatMessages.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-zinc-600 text-[10px] font-light tracking-widest text-center">
-                    BAR LOUNGE IS QUIET.<br/>LEAVE A NOTE FIRST.
-                  </div>
-                ) : chatMessages.map((msg) => (
-                  <div key={msg.id} className="text-[11px] leading-relaxed bg-zinc-950/30 p-2 rounded border border-zinc-900/10">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className={`font-medium ${msg.user === currentUsername ? 'text-jazzRed' : 'text-jazzOrange'}`}>{msg.user}</span>
-                      <span className="text-[8px] text-zinc-600 font-light">{msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : ''}</span>
+                {chatMessages.length===0
+                  ? <div className="h-full flex items-center justify-center text-zinc-600 text-[10px] font-light tracking-widest text-center">BAR LOUNGE IS QUIET.<br/>LEAVE A NOTE FIRST.</div>
+                  : chatMessages.map(msg=>(
+                    <div key={msg.id} className="text-[11px] leading-relaxed bg-zinc-950/30 p-2 rounded border border-zinc-900/10">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className={`font-medium ${msg.user===currentUsername?'text-jazzRed':'text-jazzOrange'}`}>{msg.user}</span>
+                        <span className="text-[8px] text-zinc-600 font-light">{msg.createdAt?new Date(msg.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
+                      </div>
+                      <span className="text-zinc-300 font-light break-all">{msg.text}</span>
                     </div>
-                    <span className="text-zinc-300 font-light break-all">{msg.text}</span>
-                  </div>
-                ))}
+                  ))
+                }
                 <div ref={chatEndRef} />
               </div>
               <form onSubmit={handleSendChatMessage} className="p-3 border-t border-zinc-900/50 flex gap-2 bg-jazzBlack/40">
-                <input type="text" placeholder={user ? "공간에 어울리는 이야기를..." : "로그인 후 참여해보세요."} value={chatInput} onChange={e=>setChatInput(e.target.value)} disabled={!user} className="flex-grow bg-zinc-950/80 border border-zinc-800/80 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzRed font-light disabled:opacity-40" />
+                <input type="text" placeholder={user?"공간에 어울리는 이야기를...":"로그인 후 참여해보세요."} value={chatInput} onChange={e=>setChatInput(e.target.value)} disabled={!user} className="flex-grow bg-zinc-950/80 border border-zinc-800/80 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzRed font-light disabled:opacity-40" />
                 <button type="submit" disabled={!user} className="bg-jazzRed text-white text-xs px-3.5 py-2 rounded font-medium hover:bg-red-700 transition disabled:opacity-40">
                   <i className="fa-solid fa-paper-plane text-[10px]"></i>
                 </button>
               </form>
             </div>
-
           </div>
 
         </div>
       </main>
 
-      {/* ── 모바일 하단 탭 네비 ─────────────────── */}
+      {/* ── 모바일 하단 탭 ─── */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-[53px] bg-jazzCard/95 backdrop-blur-lg border-t border-zinc-900 flex z-30">
-        <button onClick={() => setActiveTab('archive')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab === 'archive' ? 'text-jazzRed font-medium' : 'text-zinc-600'}`}>
-          <i className="fa-solid fa-compact-disc text-xs"></i>
-          <span>Sounds</span>
+        <button onClick={()=>setActiveTab('archive')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab==='archive'?'text-jazzRed font-medium':'text-zinc-600'}`}>
+          <i className="fa-solid fa-compact-disc text-xs"></i><span>Sounds</span>
         </button>
         <div className="w-[1px] h-6 bg-zinc-900 my-auto"></div>
-        <button onClick={() => setActiveTab('lounge')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab === 'lounge' ? 'text-jazzOrange font-medium' : 'text-zinc-600'}`}>
-          <i className="fa-solid fa-headphones text-xs"></i>
-          <span>Lounge</span>
+        <button onClick={()=>setActiveTab('lounge')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab==='lounge'?'text-jazzOrange font-medium':'text-zinc-600'}`}>
+          <i className="fa-solid fa-headphones text-xs"></i><span>Lounge</span>
         </button>
         <div className="w-[1px] h-6 bg-zinc-900 my-auto"></div>
-        <button onClick={() => setActiveTab('chat')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab === 'chat' ? 'text-jazzRed font-medium' : 'text-zinc-600'}`}>
+        <button onClick={()=>setActiveTab('chat')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab==='chat'?'text-jazzRed font-medium':'text-zinc-600'}`}>
           <div className="relative">
             <i className="fa-solid fa-comments text-xs"></i>
             <span className="absolute -top-1 -right-2 w-1 h-1 rounded-full bg-jazzRed animate-pulse"></span>
@@ -863,29 +749,30 @@ function App() {
         </button>
       </div>
 
-      {/* ── 모바일: Chat 탭 ──────────────────────── */}
-      {activeTab === 'chat' && (
+      {/* ── 모바일 Chat 탭 ─── */}
+      {activeTab==='chat' && (
         <div className="md:hidden fixed inset-0 top-[60px] bottom-[53px] bg-jazzBlack z-20 flex flex-col">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-900/50 bg-black/20">
             <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse"></span>
             <span className="text-[10px] tracking-widest text-zinc-300 uppercase font-light">Lounge Live Chat</span>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3 feed-scroll-container">
-            {chatMessages.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-zinc-600 text-[10px] font-light tracking-widest text-center">BAR LOUNGE IS QUIET.<br/>LEAVE A NOTE FIRST.</div>
-            ) : chatMessages.map((msg) => (
-              <div key={msg.id} className="text-[11px] leading-relaxed bg-zinc-950/30 p-2 rounded border border-zinc-900/10">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className={`font-medium ${msg.user === currentUsername ? 'text-jazzRed' : 'text-jazzOrange'}`}>{msg.user}</span>
-                  <span className="text-[8px] text-zinc-600 font-light">{msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}</span>
+            {chatMessages.length===0
+              ? <div className="h-full flex items-center justify-center text-zinc-600 text-[10px] font-light tracking-widest text-center">BAR LOUNGE IS QUIET.<br/>LEAVE A NOTE FIRST.</div>
+              : chatMessages.map(msg=>(
+                <div key={msg.id} className="text-[11px] leading-relaxed bg-zinc-950/30 p-2 rounded border border-zinc-900/10">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className={`font-medium ${msg.user===currentUsername?'text-jazzRed':'text-jazzOrange'}`}>{msg.user}</span>
+                    <span className="text-[8px] text-zinc-600 font-light">{msg.createdAt?new Date(msg.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
+                  </div>
+                  <span className="text-zinc-300 font-light break-all">{msg.text}</span>
                 </div>
-                <span className="text-zinc-300 font-light break-all">{msg.text}</span>
-              </div>
-            ))}
+              ))
+            }
             <div ref={chatEndRef} />
           </div>
           <form onSubmit={handleSendChatMessage} className="p-3 border-t border-zinc-900/50 flex gap-2 bg-jazzBlack/80">
-            <input type="text" placeholder={user ? "공간에 어울리는 이야기를..." : "로그인 후 참여해보세요."} value={chatInput} onChange={e=>setChatInput(e.target.value)} disabled={!user} className="flex-grow bg-zinc-950/80 border border-zinc-800/80 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzRed font-light disabled:opacity-40" />
+            <input type="text" placeholder={user?"공간에 어울리는 이야기를...":"로그인 후 참여해보세요."} value={chatInput} onChange={e=>setChatInput(e.target.value)} disabled={!user} className="flex-grow bg-zinc-950/80 border border-zinc-800/80 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzRed font-light disabled:opacity-40" />
             <button type="submit" disabled={!user} className="bg-jazzRed text-white text-xs px-3.5 py-2 rounded font-medium hover:bg-red-700 transition disabled:opacity-40">
               <i className="fa-solid fa-paper-plane text-[10px]"></i>
             </button>
@@ -893,12 +780,12 @@ function App() {
         </div>
       )}
 
-      {/* ── 인증 모달 ────────────────────────────── */}
+      {/* ── 인증 모달 ─── */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="relative w-full max-w-sm bg-jazzCard rounded-2xl border border-zinc-800 p-8 shadow-2xl text-center space-y-5">
             <button onClick={closeAuthModal} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-sm"><i className="fa-times fa-solid"></i></button>
-            {authMode === 'login' && (
+            {authMode==='login' && (
               <>
                 <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Jazzbar Access Space</h2>
                 <form onSubmit={handleSignIn} className="space-y-3 pt-2">
@@ -915,7 +802,7 @@ function App() {
                 </div>
               </>
             )}
-            {authMode === 'signup' && (
+            {authMode==='signup' && (
               <>
                 <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Create Account</h2>
                 <form onSubmit={handleSignUp} className="space-y-3 pt-2">
@@ -926,7 +813,7 @@ function App() {
                 <div className="pt-2"><button onClick={()=>{setAuthMode('login');setAuthEmail('');setAuthPassword('');}} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition">이미 계정이 있으신가요? 로그인</button></div>
               </>
             )}
-            {authMode === 'findId' && (
+            {authMode==='findId' && (
               <>
                 <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Find Email Account</h2>
                 <div className="text-left text-xs text-zinc-400 font-light leading-relaxed p-4 bg-zinc-950/50 rounded border border-zinc-900 space-y-2">
@@ -936,7 +823,7 @@ function App() {
                 <button onClick={()=>setAuthMode('login')} className="w-full bg-zinc-800 text-zinc-300 text-xs py-2 rounded hover:bg-zinc-700 transition">로그인 화면으로 돌아가기</button>
               </>
             )}
-            {authMode === 'findPw' && (
+            {authMode==='findPw' && (
               <>
                 <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Reset Password</h2>
                 <p className="text-[11px] text-zinc-500 font-light">가입하셨던 이메일 주소를 입력하시면<br/>비밀번호 재설정 링크를 보내드립니다.</p>
@@ -951,20 +838,20 @@ function App() {
         </div>
       )}
 
-      {/* ── Archive 피드 모달 ─────────────────────── */}
+      {/* ── Archive 피드 모달 ─── */}
       {selectedFeed && (() => {
         const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
-        const hasImg = images.length > 0;
+        const hasImg = images.length>0;
         const hasVideo = !!selectedFeed.youtubeId;
         return (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
             <div className="relative w-full max-w-[850px] h-full max-h-[85vh] bg-jazzCard rounded-2xl border border-zinc-800 flex flex-col md:flex-row shadow-2xl overflow-y-auto md:overflow-hidden">
-              <button onClick={() => setSelectedFeed(null)} className="absolute top-3 right-3 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
+              <button onClick={()=>setSelectedFeed(null)} className="absolute top-3 right-3 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
               <div className="w-full md:w-1/2 aspect-square flex-shrink-0 bg-black relative overflow-hidden select-none"
                 onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={()=>handleTouchEnd(images.length)}>
                 {hasVideo && <div className="yt-hidden-player"><iframe src={`https://www.youtube.com/embed/${selectedFeed.youtubeId}?autoplay=1&mute=0&loop=1&playlist=${selectedFeed.youtubeId}&start=${selectedFeed.startTime||0}&end=${selectedFeed.endTime||0}&controls=0`} title="YT" frameBorder="0" width="1" height="1"></iframe></div>}
                 {hasImg ? <img src={images[currentImgIdx]} className="w-full h-full object-cover pointer-events-none" alt="modal-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs text-zinc-600 font-mono">AUDIO SESSION</div>}
-                {hasImg && images.length > 1 && (
+                {hasImg && images.length>1 && (
                   <>
                     <button onClick={e=>{e.stopPropagation();prevImage(images.length);}} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed z-20"><i className="fa-solid fa-chevron-left text-xs"></i></button>
                     <button onClick={e=>{e.stopPropagation();nextImage(images.length);}} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed z-20"><i className="fa-solid fa-chevron-right text-xs"></i></button>
@@ -977,12 +864,12 @@ function App() {
               <div className="flex flex-col justify-between bg-jazzBlack p-4 md:p-6 w-full md:w-1/2 flex-1 min-h-0">
                 <div className="flex flex-col gap-3 flex-1 overflow-y-auto min-h-0">
                   <div>
-                    <h2 className="text-base md:text-xl font-light text-white truncate capitalize">{selectedFeed.title || 'Untitled'}</h2>
-                    <p className="text-[11px] md:text-xs text-zinc-500 font-light mt-0.5">{selectedFeed.artistName || 'Phill Session'}</p>
+                    <h2 className="text-base md:text-xl font-light text-white truncate capitalize">{selectedFeed.title||'Untitled'}</h2>
+                    <p className="text-[11px] md:text-xs text-zinc-500 font-light mt-0.5">{selectedFeed.artistName||'Phill Session'}</p>
                   </div>
-                  <div className="w-full text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2.5 border-t border-b border-zinc-900/60">{selectedFeed.bio || <span className="text-zinc-700 italic">소개가 없습니다.</span>}</div>
+                  <div className="w-full text-xs text-zinc-400 font-light leading-relaxed whitespace-pre-wrap py-2.5 border-t border-b border-zinc-900/60">{selectedFeed.bio||<span className="text-zinc-700 italic">소개가 없습니다.</span>}</div>
                   <div className="flex-1 min-h-[80px] overflow-y-auto feed-scroll-container space-y-2 text-[11px]">
-                    {(selectedFeed.comments || []).map((c,i)=>(
+                    {(selectedFeed.comments||[]).map((c,i)=>(
                       <div key={i} className="bg-zinc-950/40 p-2 rounded border border-zinc-900/30">
                         <span className="font-medium text-jazzOrange mr-1.5">{c.user}</span>
                         <span className="text-zinc-400 font-light">{c.text}</span>
@@ -990,7 +877,7 @@ function App() {
                     ))}
                   </div>
                 </div>
-                <form onSubmit={(e)=>handleAddComment(e, selectedFeed.id)} className="flex gap-2 pt-3 border-t border-zinc-900/60 mt-2">
+                <form onSubmit={e=>handleAddComment(e,selectedFeed.id)} className="flex gap-2 pt-3 border-t border-zinc-900/60 mt-2">
                   <input type="text" placeholder="방명록을 남겨주세요..." value={commentInputs[selectedFeed.id]||""} onChange={e=>setCommentInputs({...commentInputs,[selectedFeed.id]:e.target.value})} className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzRed" />
                   <button type="submit" className="bg-jazzRed text-white text-[11px] px-3 py-1.5 rounded font-medium hover:bg-red-700 transition">게시</button>
                 </form>
@@ -1000,23 +887,16 @@ function App() {
         );
       })()}
 
-      {/* ── Music Lounge 음악 등록 모달 ──────────── */}
-      {showAddMusic && (
-        <AddMusicModal
-          user={user}
-          onClose={() => setShowAddMusic(false)}
-          onSubmit={handleAddMusicSubmit}
-        />
-      )}
-
-      {/* ── Music Lounge 상세 모달 ───────────────── */}
+      {/* ── Music Lounge 상세 모달 ─── */}
       {selectedMusic && (
         <MusicDetailModal
           item={selectedMusic}
           user={user}
-          onClose={() => setSelectedMusic(null)}
+          onClose={()=>setSelectedMusic(null)}
           onRate={handleRate}
           onReview={handleReview}
+          onEditReview={handleEditReview}
+          onDeleteReview={handleDeleteReview}
           currentUsername={currentUsername}
         />
       )}
