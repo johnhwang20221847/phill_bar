@@ -1,5 +1,3 @@
-/admin.html/
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -32,7 +30,6 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  // 💬 실시간 관리 감독을 위한 onSnapshot 추가 바인딩
   window.__firestore = {
     db, auth,
     collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, onSnapshot
@@ -51,22 +48,36 @@ tailwind.config = {
 .feed-scroll-container { scrollbar-width: thin; scrollbar-color: #FF2A1A transparent; }
 </style>
 </head>
-<body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen p-4 md:p-6 flex items-center justify-center">
-<div id="root" class="w-full max-w-5xl h-[92vh]"></div>
+<body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen p-4 md:p-6">
+<div id="root" class="w-full max-w-7xl mx-auto"></div>
 
 <script type="text/babel">
 const { useState, useEffect, useCallback, useRef } = React;
 
 const PASS_KEY = "phillbar77";
 
+const GENRE_COLORS = {
+  'Jazz': '#FFA100', 'Classical': '#D4A843', 'Blues': '#4A9EBF',
+  'R&B': '#C084FC', 'Soul': '#F97316', 'Bossa Nova': '#34D399',
+  'Lo-fi': '#94A3B8', 'Pop': '#F472B6', 'Rock': '#EF4444',
+  'Electronic': '#22D3EE', 'Hip-hop': '#A78BFA', 'Folk': '#86EFAC', 'Other': '#6B7280',
+};
+const GENRES = Object.keys(GENRE_COLORS);
+
+/* ─────────────────────────────────────────────
+   메인 어드민 앱
+───────────────────────────────────────────── */
 function AdminApp() {
   const [firebaseReady, setFirebaseReady] = useState(!!window.__firestore);
   const [isAuthed, setIsAuthed] = useState(false);
   const [passInput, setPassInput] = useState('');
-  const [feeds, setFeeds] = useState([]);
-  const [chats, setChats] = useState([]); // 💬 실시간 라운지 채팅 모니터링 데이터 상태
-  const [loading, setLoading] = useState(false);
 
+  /* 현재 활성 패널 탭 */
+  const [panel, setPanel] = useState('feeds'); // 'feeds' | 'lounge' | 'chat'
+
+  /* ── Sound Archive (feeds) 상태 ── */
+  const [feeds, setFeeds] = useState([]);
+  const [feedsLoading, setFeedsLoading] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [editId, setEditId] = useState(null);
   const [title, setTitle] = useState('');
@@ -74,175 +85,237 @@ function AdminApp() {
   const [images, setImages] = useState('');
   const [members, setMembers] = useState('');
   const [bio, setBio] = useState('');
-
   const [youtubeId, setYoutubeId] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
+  /* ── Music Lounge 상태 ── */
+  const [loungeItems, setLoungeItems] = useState([]);
+  const [loungeLoading, setLoungeLoading] = useState(false);
+  const [loungeEdit, setLoungeEdit] = useState(null); // null | lounge item object
+  const [lTitle, setLTitle] = useState('');
+  const [lArtist, setLArtist] = useState('');
+  const [lGenre, setLGenre] = useState('Jazz');
+  const [lCover, setLCover] = useState('');
+  const [lYtUrl, setLYtUrl] = useState('');
+  const [lDesc, setLDesc] = useState('');
+  const [loungeFormLoading, setLoungeFormLoading] = useState(false);
+
+  /* ── Chat 상태 ── */
+  const [chats, setChats] = useState([]);
   const chatEndRef = useRef(null);
 
+  /* Firebase ready */
   useEffect(() => {
     if (!firebaseReady) {
       window.addEventListener('firebase-ready', () => setFirebaseReady(true), { once: true });
     }
   }, []);
 
-  // 피드 로드 로직
+  /* ── 피드 로드 ── */
   const loadFeeds = useCallback(async () => {
     if (!window.__firestore) return;
     const { db, collection, query, orderBy, getDocs } = window.__firestore;
-    setLoading(true);
+    setFeedsLoading(true);
     try {
       const q = query(collection(db, 'feeds'), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setFeeds(data);
-    } catch(e) {
-      console.error(e);
-    }
-    setLoading(false);
+      const snap = await getDocs(q);
+      setFeeds(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch(e) { console.error(e); }
+    setFeedsLoading(false);
   }, []);
 
-  // 💬 라운지 실시간 대화 추적 및 모니터링 스트림 연결
+  /* ── 인증 후 실시간 구독 ── */
   useEffect(() => {
-    if (isAuthed && firebaseReady) {
-      loadFeeds();
+    if (!isAuthed || !firebaseReady) return;
+    loadFeeds();
 
-      const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
-      const qChats = query(collection(db, 'chats'), orderBy('createdAt', 'asc'));
-      
-      const unsubChats = onSnapshot(qChats, (snapshot) => {
-        const messages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        setChats(messages);
-      });
+    const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
 
-      return () => { if (unsubChats) unsubChats(); };
-    }
+    /* Lounge 실시간 */
+    const qLounge = query(collection(db, 'music_lounge'), orderBy('createdAt', 'desc'));
+    const unsubLounge = onSnapshot(qLounge, snap => {
+      setLoungeItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoungeLoading(false);
+    });
+
+    /* Chat 실시간 */
+    const qChats = query(collection(db, 'chats'), orderBy('createdAt', 'asc'));
+    const unsubChats = onSnapshot(qChats, snap => {
+      setChats(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unsubLounge(); unsubChats(); };
   }, [isAuthed, firebaseReady]);
 
-  // 채팅 리스트 자동 스크롤 하단 동기화
+  /* 채팅 자동 스크롤 */
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [chats]);
 
+  /* ── 로그인 ── */
   const handleLogin = (e) => {
     e.preventDefault();
     if (passInput === PASS_KEY) setIsAuthed(true);
     else alert('인증 토큰이 유효하지 않습니다.');
   };
 
-  const handleSave = async (e) => {
+  /* ───────────────────────────────────────────
+     SOUND ARCHIVE (feeds) CRUD
+  ─────────────────────────────────────────── */
+  const handleSaveFeed = async (e) => {
     e.preventDefault();
     if (!title && !images && !bio && !youtubeId) {
-      alert('최소한 제목, 이미지, 유튜브 링크, 또는 설명 중 하나는 입력해주세요.');
+      alert('최소 한 가지 이상 입력해주세요.');
       return;
     }
     const { db, collection, addDoc, doc, updateDoc, serverTimestamp } = window.__firestore;
-    setLoading(true);
-
-    const feedPayload = {
-      title,
-      artistName: artist,
-      coverImage: images,
-      members,
-      bio,
+    setFeedsLoading(true);
+    const payload = {
+      title, artistName: artist, coverImage: images, members, bio,
       youtubeId: youtubeId.trim() || null,
       startTime: startTime ? Number(startTime) : 0,
       endTime: endTime ? Number(endTime) : 0
     };
-
     try {
       if (isEdit) {
-        await updateDoc(doc(db, 'feeds', editId), feedPayload);
+        await updateDoc(doc(db, 'feeds', editId), payload);
         alert('수정 완료되었습니다.');
       } else {
-        await addDoc(collection(db, 'feeds'), {
-          ...feedPayload,
-          comments: [],
-          createdAt: serverTimestamp()
-        });
+        await addDoc(collection(db, 'feeds'), { ...payload, comments: [], createdAt: serverTimestamp() });
         alert('새 피드가 발행되었습니다.');
       }
       await loadFeeds();
-      clearForm();
-    } catch(e) {
-      alert('저장 실패: ' + e.message);
-    }
-    setLoading(false);
+      clearFeedForm();
+    } catch(e) { alert('저장 실패: ' + e.message); }
+    setFeedsLoading(false);
   };
 
-  const startEdit = (f) => {
-    setIsEdit(true); 
-    setEditId(f.id); 
-    setTitle(f.title || '');
-    setArtist(f.artistName || ''); 
-    setImages(f.coverImage || '');
-    setMembers(f.members || ''); 
-    setBio(f.bio || '');
-    setYoutubeId(f.youtubeId || '');
+  const startEditFeed = (f) => {
+    setIsEdit(true); setEditId(f.id);
+    setTitle(f.title || ''); setArtist(f.artistName || '');
+    setImages(f.coverImage || ''); setMembers(f.members || '');
+    setBio(f.bio || ''); setYoutubeId(f.youtubeId || '');
     setStartTime(f.startTime !== undefined ? f.startTime : '');
     setEndTime(f.endTime !== undefined ? f.endTime : '');
+    setPanel('feeds');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteFeed = async (id) => {
     if (!window.confirm('이 피드를 영구 삭제합니까?')) return;
     const { db, doc, deleteDoc } = window.__firestore;
-    setLoading(true);
-    try {
-      await deleteDoc(doc(db, 'feeds', id));
-      await loadFeeds();
-    } catch(e) {
-      alert('삭제 실패: ' + e.message);
-    }
-    setLoading(false);
+    setFeedsLoading(true);
+    try { await deleteDoc(doc(db, 'feeds', id)); await loadFeeds(); }
+    catch(e) { alert('삭제 실패: ' + e.message); }
+    setFeedsLoading(false);
   };
 
-  // 💬 단일 채팅 메시지 원격 삭제 컨트롤러
+  const clearFeedForm = () => {
+    setIsEdit(false); setEditId(null);
+    setTitle(''); setArtist(''); setImages(''); setMembers(''); setBio('');
+    setYoutubeId(''); setStartTime(''); setEndTime('');
+  };
+
+  /* ───────────────────────────────────────────
+     MUSIC LOUNGE CRUD
+  ─────────────────────────────────────────── */
+  const extractYoutubeId = (url) => {
+    if (!url) return null;
+    const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+    return m ? m[1] : (url.length === 11 ? url : null);
+  };
+
+  const clearLoungeForm = () => {
+    setLoungeEdit(null);
+    setLTitle(''); setLArtist(''); setLGenre('Jazz');
+    setLCover(''); setLYtUrl(''); setLDesc('');
+  };
+
+  const startEditLounge = (item) => {
+    setLoungeEdit(item);
+    setLTitle(item.title || ''); setLArtist(item.artist || '');
+    setLGenre(item.genre || 'Jazz'); setLCover(item.coverUrl || '');
+    setLYtUrl(item.youtubeId ? `https://youtube.com/watch?v=${item.youtubeId}` : '');
+    setLDesc(item.desc || '');
+    setPanel('lounge');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSaveLounge = async (e) => {
+    e.preventDefault();
+    if (!lTitle.trim() || !lArtist.trim()) { alert('곡명과 아티스트는 필수입니다.'); return; }
+    const { db, collection, addDoc, doc, updateDoc } = window.__firestore;
+    setLoungeFormLoading(true);
+    const ytId = extractYoutubeId(lYtUrl.trim());
+    const payload = {
+      title: lTitle.trim(), artist: lArtist.trim(), genre: lGenre,
+      coverUrl: lCover.trim(), youtubeId: ytId || null, desc: lDesc.trim(),
+    };
+    try {
+      if (loungeEdit) {
+        await updateDoc(doc(db, 'music_lounge', loungeEdit.id), payload);
+        alert('음악 정보가 수정되었습니다.');
+      } else {
+        await addDoc(collection(db, 'music_lounge'), {
+          ...payload, submittedBy: 'admin',
+          createdAt: Date.now(), ratings: [], reviews: [],
+        });
+        alert('음악이 라운지에 등록되었습니다.');
+      }
+      clearLoungeForm();
+    } catch(e) { alert('저장 실패: ' + e.message); }
+    setLoungeFormLoading(false);
+  };
+
+  const handleDeleteLounge = async (id) => {
+    if (!window.confirm('이 음악을 라운지에서 영구 삭제합니까?')) return;
+    const { db, doc, deleteDoc } = window.__firestore;
+    try { await deleteDoc(doc(db, 'music_lounge', id)); }
+    catch(e) { alert('삭제 실패: ' + e.message); }
+  };
+
+  /* ── 개별 리뷰/평점 삭제 ── */
+  const handleDeleteReview = async (musicId, reviewUser) => {
+    if (!window.confirm(`"${reviewUser}" 유저의 리뷰를 삭제하겠습니까?`)) return;
+    const { db, doc, updateDoc } = window.__firestore;
+    const item = loungeItems.find(m => m.id === musicId);
+    if (!item) return;
+    try {
+      await updateDoc(doc(db, 'music_lounge', musicId), {
+        reviews: (item.reviews || []).filter(r => r.user !== reviewUser),
+        ratings: (item.ratings || []).filter(r => r.user !== reviewUser),
+      });
+    } catch(e) { alert('리뷰 삭제 실패: ' + e.message); }
+  };
+
+  /* ── Chat 삭제 ── */
   const handleDeleteChat = async (id) => {
-    if (!window.confirm('이 라운지 대화 메시지를 삭제처리 하겠습니까?')) return;
+    if (!window.confirm('이 메시지를 삭제하겠습니까?')) return;
     const { db, doc, deleteDoc } = window.__firestore;
-    try {
-      await deleteDoc(doc(db, 'chats', id));
-    } catch(e) {
-      alert('채팅 삭제 실패: ' + e.message);
-    }
+    try { await deleteDoc(doc(db, 'chats', id)); }
+    catch(e) { alert('채팅 삭제 실패: ' + e.message); }
   };
 
-  // 💬 도배 방지용 전체 채팅창 청소 (Clear)
   const handleClearAllChats = async () => {
-    if (!window.confirm('⚠️ 현재 라운지의 모든 실시간 대화 기록을 일괄 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    if (!window.confirm('⚠️ 모든 라운지 대화를 삭제합니까? 되돌릴 수 없습니다.')) return;
     const { db, doc, deleteDoc } = window.__firestore;
     try {
-      const promises = chats.map(msg => deleteDoc(doc(db, 'chats', msg.id)));
-      await Promise.all(promises);
-      alert('라운지 스트림 청소가 완료되었습니다.');
-    } catch(e) {
-      alert('일괄 삭제 실패: ' + e.message);
-    }
+      await Promise.all(chats.map(msg => deleteDoc(doc(db, 'chats', msg.id))));
+      alert('라운지 스트림 청소 완료.');
+    } catch(e) { alert('일괄 삭제 실패: ' + e.message); }
   };
 
-  const clearForm = () => {
-    setIsEdit(false); 
-    setEditId(null); 
-    setTitle(''); 
-    setArtist('');
-    setImages(''); 
-    setMembers(''); 
-    setBio('');
-    setYoutubeId('');
-    setStartTime('');
-    setEndTime('');
-  };
-
+  /* ─────────────────────────────────────────
+     RENDER
+  ───────────────────────────────────────── */
   if (!firebaseReady) {
-    return <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xs tracking-widest">CONNECTING...</div>;
+    return <div className="w-full h-screen flex items-center justify-center text-zinc-500 text-xs tracking-widest">CONNECTING...</div>;
   }
 
   if (!isAuthed) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="w-full min-h-screen flex items-center justify-center">
         <form onSubmit={handleLogin} className="bg-jazzCard p-8 rounded-2xl border border-zinc-800 w-full max-w-sm text-center space-y-4 shadow-xl">
           <h2 className="text-xs tracking-[0.2em] text-white uppercase font-light">CONSOLES KEY VERIFICATION</h2>
           <input type="password" placeholder="Security Password" value={passInput} onChange={e=>setPassInput(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded py-2 text-xs text-center text-white focus:outline-none focus:border-jazzRed" />
@@ -253,134 +326,268 @@ function AdminApp() {
   }
 
   return (
-    <div className="bg-jazzCard border border-zinc-800/80 rounded-2xl p-6 w-full h-full flex flex-col lg:flex-row gap-6 shadow-2xl overflow-hidden">
-      
-      {/* 왼쪽 섹션: 사운드 아카이브 에디터 폼 */}
-      <form onSubmit={handleSave} className="w-full lg:w-[45%] flex flex-col justify-between space-y-3 overflow-y-auto pr-1 feed-scroll-container">
-        <div className="space-y-3">
-          <h2 className="text-xs text-jazzOrange font-medium tracking-widest uppercase">{isEdit ? "Modify Station" : "Publish New Feed"}</h2>
-          <input type="text" placeholder="피드 제목 (공란 가능)" value={title} onChange={e=>setTitle(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-jazzRed" />
-          <input type="text" placeholder="아티스트 소속 명칭" value={artist} onChange={e=>setArtist(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
-          <input type="text" placeholder="멤버 세션 구성원 정보" value={members} onChange={e=>setMembers(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
-          
-          <div className="bg-zinc-950 p-2 rounded border border-zinc-900 space-y-1.5">
-            <label className="text-[10px] text-zinc-500 block">이미지 소스 주소 URL (다중 업로드는 엔터 줄바꿈 구분, 공란 시 텍스트 전용 전환)</label>
-            <textarea rows="2" placeholder={"https://example.com/image1.jpg\nhttps://example.com/image2.jpg"} value={images} onChange={e=>setImages(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-[11px] text-zinc-300 focus:outline-none"></textarea>
-          </div>
+    <div className="min-h-screen space-y-4">
 
-          <div className="bg-zinc-950 p-3 rounded border border-zinc-900 space-y-2">
-            <label className="text-[10px] text-jazzOrange block font-medium tracking-wide"><i className="fa-brands fa-youtube mr-1"></i> YouTube 무한 루프 하이라이트 설정</label>
-            <input 
-              type="text" 
-              placeholder="유튜브 11자리 고유 ID만 입력 (예: WvNpPr4Mk8U)" 
-              value={youtubeId} 
-              onChange={e=>setYoutubeId(e.target.value)} 
-              className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" 
-            />
-            <div className="flex gap-2">
-              <div className="w-1/2 space-y-1">
-                <span className="text-[9px] text-zinc-500 pl-0.5">시작 시점 (초 단위)</span>
-                <input type="number" placeholder="예: 30" value={startTime} onChange={e=>setStartTime(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" min="0" />
-              </div>
-              <div className="w-1/2 space-y-1">
-                <span className="text-[9px] text-zinc-500 pl-0.5">종료 시점 (초 단위)</span>
-                <input type="number" placeholder="예: 75" value={endTime} onChange={e=>setEndTime(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" min="0" />
+      {/* 상단 헤더 */}
+      <div className="bg-jazzCard border border-zinc-800/80 rounded-2xl px-6 py-3 flex items-center justify-between">
+        <div>
+          <h1 className="text-sm tracking-[0.25em] text-white uppercase font-light">PHILL CONSOLE</h1>
+          <p className="text-[9px] text-zinc-600 tracking-widest mt-0.5">ADMIN CONTROL PANEL</p>
+        </div>
+        <div className="flex gap-2">
+          {[
+            { key: 'feeds', label: 'Sound Archive', icon: 'fa-compact-disc', color: 'jazzRed' },
+            { key: 'lounge', label: 'Music Lounge', icon: 'fa-headphones', color: 'jazzOrange' },
+            { key: 'chat', label: 'Lounge Chat', icon: 'fa-comments', color: 'jazzRed' },
+          ].map(t => (
+            <button
+              key={t.key}
+              onClick={() => setPanel(t.key)}
+              className={`text-[9px] tracking-widest uppercase px-3 py-1.5 rounded border transition ${
+                panel === t.key
+                  ? t.color === 'jazzOrange'
+                    ? 'bg-jazzOrange/20 text-jazzOrange border-jazzOrange/40'
+                    : 'bg-jazzRed/20 text-jazzRed border-jazzRed/40'
+                  : 'text-zinc-600 border-zinc-800 hover:text-zinc-400'
+              }`}
+            >
+              <i className={`fa-solid ${t.icon} mr-1`}></i>{t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════
+          PANEL: SOUND ARCHIVE
+      ════════════════════════════════════════ */}
+      {panel === 'feeds' && (
+        <div className="bg-jazzCard border border-zinc-800/80 rounded-2xl p-6 flex flex-col lg:flex-row gap-6 shadow-2xl">
+          {/* 폼 */}
+          <form onSubmit={handleSaveFeed} className="w-full lg:w-[42%] flex flex-col space-y-3">
+            <h2 className="text-xs text-jazzOrange font-medium tracking-widest uppercase">{isEdit ? "Modify Station" : "Publish New Feed"}</h2>
+            <input type="text" placeholder="피드 제목" value={title} onChange={e=>setTitle(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-jazzRed" />
+            <input type="text" placeholder="아티스트 소속 명칭" value={artist} onChange={e=>setArtist(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
+            <input type="text" placeholder="멤버 세션 구성원 정보" value={members} onChange={e=>setMembers(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" />
+            <div className="bg-zinc-950 p-2 rounded border border-zinc-900 space-y-1.5">
+              <label className="text-[10px] text-zinc-500 block">이미지 URL (줄바꿈으로 다중 입력)</label>
+              <textarea rows="2" placeholder={"https://example.com/image1.jpg\nhttps://example.com/image2.jpg"} value={images} onChange={e=>setImages(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-[11px] text-zinc-300 focus:outline-none"></textarea>
+            </div>
+            <div className="bg-zinc-950 p-3 rounded border border-zinc-900 space-y-2">
+              <label className="text-[10px] text-jazzOrange block font-medium tracking-wide"><i className="fa-brands fa-youtube mr-1"></i> YouTube 루프 설정</label>
+              <input type="text" placeholder="유튜브 11자리 ID (예: WvNpPr4Mk8U)" value={youtubeId} onChange={e=>setYoutubeId(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-jazzOrange" />
+              <div className="flex gap-2">
+                <div className="w-1/2 space-y-1">
+                  <span className="text-[9px] text-zinc-500">시작 (초)</span>
+                  <input type="number" placeholder="예: 30" value={startTime} onChange={e=>setStartTime(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" min="0" />
+                </div>
+                <div className="w-1/2 space-y-1">
+                  <span className="text-[9px] text-zinc-500">종료 (초)</span>
+                  <input type="number" placeholder="예: 75" value={endTime} onChange={e=>setEndTime(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none" min="0" />
+                </div>
               </div>
             </div>
-          </div>
+            <textarea rows="3" placeholder="설명 본문" value={bio} onChange={e=>setBio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none"></textarea>
+            <div className="flex gap-2 pt-1">
+              {isEdit && <button type="button" onClick={clearFeedForm} className="w-1/4 bg-zinc-800 text-xs rounded text-zinc-400 py-2">취소</button>}
+              <button type="submit" disabled={feedsLoading} className="flex-1 bg-jazzRed text-white text-xs py-2 rounded font-medium tracking-wider disabled:opacity-50">
+                {feedsLoading ? '처리 중...' : (isEdit ? "수정 반영" : "즉시 발행")}
+              </button>
+            </div>
+          </form>
 
-          <textarea rows="3" placeholder="설명 본문 텍스트란 입력 (공란 가능)" value={bio} onChange={e=>setBio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none"></textarea>
-        </div>
-        
-        <div className="flex gap-2 pt-2">
-          {isEdit && <button type="button" onClick={clearForm} className="w-1/4 bg-zinc-800 text-xs rounded text-zinc-400">취소</button>}
-          <button type="submit" disabled={loading} className="flex-1 bg-jazzRed text-white text-xs py-2 rounded font-medium tracking-wider disabled:opacity-50">
-            {loading ? '처리 중...' : (isEdit ? "수정 반영하기" : "바에 즉시 발행하기")}
-          </button>
-        </div>
-      </form>
-
-      {/* 오른쪽 섹션: 피드 현황 및 실시간 대화 연동 모니터 콘솔 (2분할 분배) */}
-      <div className="w-full lg:w-[55%] flex flex-col md:flex-row gap-4 border-t lg:border-t-0 lg:border-l border-zinc-900 lg:pl-4 overflow-hidden">
-        
-        {/* 우측 상단/좌측: 아카이브 피드 대시보드 */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-[10px] text-zinc-500 tracking-widest uppercase">Board Feeds ({feeds.length})</h2>
-            <button type="button" onClick={loadFeeds} className="text-[9px] text-zinc-600 hover:text-jazzOrange">↻ 갱신</button>
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 feed-scroll-container">
-            {feeds.map(f => {
-              const imgs = f.coverImage ? f.coverImage.split('\n').filter(Boolean) : [];
-              const isVideoFeed = !!f.youtubeId;
-              return (
-                <div key={f.id} className="bg-zinc-950/80 p-2 rounded border border-zinc-900 flex items-center justify-between text-[11px]">
-                  <div className="flex items-center space-x-2 overflow-hidden w-[75%]">
-                    {isVideoFeed ? (
-                      <div className="w-7 h-7 bg-red-950/40 border border-red-900/40 rounded flex flex-col items-center justify-center text-[6px] text-red-500 font-bold shrink-0">
-                        <i className="fa-brands fa-youtube text-[10px]"></i>
+          {/* 피드 목록 */}
+          <div className="w-full lg:w-[58%] flex flex-col max-h-[520px]">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-[10px] text-zinc-500 tracking-widest uppercase">Board Feeds ({feeds.length})</h2>
+              <button type="button" onClick={loadFeeds} className="text-[9px] text-zinc-600 hover:text-jazzOrange">↻ 갱신</button>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 feed-scroll-container">
+              {feeds.map(f => {
+                const imgs = f.coverImage ? f.coverImage.split('\n').filter(Boolean) : [];
+                return (
+                  <div key={f.id} className="bg-zinc-950/80 p-2 rounded border border-zinc-900 flex items-center justify-between text-[11px]">
+                    <div className="flex items-center space-x-2 overflow-hidden w-[75%]">
+                      {f.youtubeId ? (
+                        <div className="w-7 h-7 bg-red-950/40 border border-red-900/40 rounded flex items-center justify-center shrink-0">
+                          <i className="fa-brands fa-youtube text-[10px] text-red-500"></i>
+                        </div>
+                      ) : imgs.length > 0 ? (
+                        <img src={imgs[0]} className="w-7 h-7 object-cover rounded bg-zinc-900 shrink-0" />
+                      ) : (
+                        <div className="w-7 h-7 bg-zinc-900 border border-zinc-800 rounded flex items-center justify-center text-[7px] text-zinc-600 shrink-0">TXT</div>
+                      )}
+                      <div className="truncate">
+                        <h4 className="text-zinc-200 truncate capitalize font-light">{f.title || 'Untitled'}</h4>
+                        <p className="text-[9px] text-zinc-600 truncate">{f.artistName || 'No Name'}</p>
                       </div>
-                    ) : imgs.length > 0 ? (
-                      <img src={imgs[0]} className="w-7 h-7 object-cover rounded bg-zinc-900 shrink-0" />
-                    ) : (
-                      <div className="w-7 h-7 bg-zinc-900 border border-zinc-800 rounded flex items-center justify-center text-[7px] text-zinc-600 shrink-0">TXT</div>
-                    )}
-                    <div className="truncate">
-                      <h4 className="text-zinc-200 truncate capitalize font-light">{f.title || 'Untitled'}</h4>
-                      <p className="text-[9px] text-zinc-600 truncate">{f.artistName || 'No Name'}</p>
+                    </div>
+                    <div className="flex space-x-2 text-[10px] text-zinc-500 shrink-0">
+                      <button type="button" onClick={() => startEditFeed(f)} className="hover:text-jazzOrange">수정</button>
+                      <button type="button" onClick={() => handleDeleteFeed(f.id)} className="hover:text-jazzRed">삭제</button>
                     </div>
                   </div>
-                  <div className="flex space-x-2 text-[10px] text-zinc-500 shrink-0">
-                    <button type="button" onClick={() => startEdit(f)} className="hover:text-jazzOrange">수정</button>
-                    <button type="button" onClick={() => handleDelete(f.id)} className="hover:text-jazzRed">삭제</button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
+      )}
 
-        {/* 우측 하단/우측: 💬 라운지 실시간 스트림 백오피스 모니터 */}
-        <div className="flex-1 flex flex-col h-full bg-zinc-950/40 rounded-xl border border-zinc-900 p-3 overflow-hidden">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
+      {/* ════════════════════════════════════════
+          PANEL: MUSIC LOUNGE
+      ════════════════════════════════════════ */}
+      {panel === 'lounge' && (
+        <div className="bg-jazzCard border border-zinc-800/80 rounded-2xl p-6 flex flex-col lg:flex-row gap-6 shadow-2xl">
+          {/* 음악 등록/수정 폼 */}
+          <form onSubmit={handleSaveLounge} className="w-full lg:w-[42%] flex flex-col space-y-3">
+            <h2 className="text-xs text-jazzOrange font-medium tracking-widest uppercase">
+              {loungeEdit ? "Modify Lounge Track" : "Add Track to Lounge"}
+            </h2>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Title *</label>
+                <input value={lTitle} onChange={e=>setLTitle(e.target.value)} required placeholder="곡 제목" className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange" />
+              </div>
+              <div>
+                <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Artist *</label>
+                <input value={lArtist} onChange={e=>setLArtist(e.target.value)} required placeholder="아티스트" className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Genre</label>
+              <select value={lGenre} onChange={e=>setLGenre(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange">
+                {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Cover Image URL <span className="text-zinc-700 normal-case">(선택)</span></label>
+              <input value={lCover} onChange={e=>setLCover(e.target.value)} placeholder="https://..." className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange" />
+            </div>
+
+            <div>
+              <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">YouTube URL <span className="text-zinc-700 normal-case">(선택)</span></label>
+              <input value={lYtUrl} onChange={e=>setLYtUrl(e.target.value)} placeholder="https://youtube.com/watch?v=... 또는 11자리 ID" className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange" />
+            </div>
+
+            <div>
+              <label className="text-[9px] tracking-widest text-zinc-500 uppercase block mb-1">Description <span className="text-zinc-700 normal-case">(선택)</span></label>
+              <textarea value={lDesc} onChange={e=>setLDesc(e.target.value)} rows={2} placeholder="음악 소개..." className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzOrange resize-none"></textarea>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              {loungeEdit && <button type="button" onClick={clearLoungeForm} className="w-1/4 bg-zinc-800 text-xs rounded text-zinc-400 py-2">취소</button>}
+              <button type="submit" disabled={loungeFormLoading} className="flex-1 bg-jazzOrange text-black text-xs py-2 rounded font-medium hover:bg-amber-500 transition disabled:opacity-50">
+                {loungeFormLoading ? '처리 중...' : (loungeEdit ? "수정 반영" : "라운지에 등록")}
+              </button>
+            </div>
+          </form>
+
+          {/* 음악 목록 + 리뷰 관리 */}
+          <div className="w-full lg:w-[58%] flex flex-col max-h-[600px] overflow-hidden">
+            <h2 className="text-[10px] text-zinc-500 tracking-widest uppercase mb-2">Lounge Tracks ({loungeItems.length})</h2>
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 feed-scroll-container">
+              {loungeItems.map(item => {
+                const avg = item.ratings?.length
+                  ? (item.ratings.reduce((s,r)=>s+r.score,0)/item.ratings.length).toFixed(1)
+                  : null;
+                const genreColor = GENRE_COLORS[item.genre] || '#6B7280';
+                return (
+                  <div key={item.id} className="bg-zinc-950/80 rounded-xl border border-zinc-900 overflow-hidden">
+                    {/* 트랙 헤더 */}
+                    <div className="flex items-center justify-between p-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-lg overflow-hidden bg-zinc-900 flex items-center justify-center shrink-0">
+                          {item.coverUrl
+                            ? <img src={item.coverUrl} className="w-full h-full object-cover" />
+                            : <i className="fa-solid fa-music text-zinc-700 text-xs"></i>
+                          }
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-[8px] px-1.5 py-0.5 rounded font-medium" style={{ background: genreColor+'22', color: genreColor, border:`1px solid ${genreColor}44`}}>{item.genre}</span>
+                          </div>
+                          <p className="text-[12px] text-zinc-200 font-light truncate">{item.title}</p>
+                          <p className="text-[10px] text-zinc-600 truncate">{item.artist}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0 ml-2">
+                        <div className="text-right">
+                          <p className="text-[10px] text-jazzOrange">{avg ? `★ ${avg}` : '—'}</p>
+                          <p className="text-[9px] text-zinc-600">{(item.reviews||[]).length}개 리뷰</p>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <button onClick={() => startEditLounge(item)} className="text-[9px] text-zinc-500 hover:text-jazzOrange transition px-2 py-0.5 bg-zinc-900 rounded">수정</button>
+                          <button onClick={() => handleDeleteLounge(item.id)} className="text-[9px] text-zinc-500 hover:text-jazzRed transition px-2 py-0.5 bg-zinc-900 rounded">삭제</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 리뷰 목록 (관리자용) */}
+                    {(item.reviews||[]).length > 0 && (
+                      <div className="border-t border-zinc-900/60 px-3 pb-2 pt-2 space-y-1.5">
+                        <p className="text-[8px] text-zinc-600 uppercase tracking-widest mb-1">Reviews</p>
+                        {item.reviews.map((rv, i) => (
+                          <div key={i} className="flex items-start justify-between gap-2 bg-zinc-900/40 rounded px-2 py-1.5">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="text-[10px] font-medium text-jazzOrange">{rv.user}</span>
+                                {rv.score > 0 && <span className="text-[9px] text-jazzGold">{'★'.repeat(rv.score)}</span>}
+                              </div>
+                              <p className="text-[10px] text-zinc-400 font-light break-all">{rv.text}</p>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteReview(item.id, rv.user)}
+                              className="text-[9px] text-zinc-700 hover:text-jazzRed transition shrink-0 mt-0.5"
+                              title="리뷰 삭제"
+                            >✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════
+          PANEL: LOUNGE CHAT
+      ════════════════════════════════════════ */}
+      {panel === 'chat' && (
+        <div className="bg-jazzCard border border-zinc-800/80 rounded-2xl p-6 shadow-2xl flex flex-col" style={{ maxHeight: '75vh' }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse"></span>
-              <h2 className="text-[10px] text-zinc-400 tracking-widest uppercase">Lounge Feed ({chats.length})</h2>
+              <h2 className="text-[10px] text-zinc-400 tracking-widest uppercase">Lounge Chat ({chats.length})</h2>
             </div>
             {chats.length > 0 && (
-              <button type="button" onClick={handleClearAllChats} className="text-[8px] bg-red-950 text-red-400 border border-red-900/60 px-1.5 py-0.5 rounded hover:bg-jazzRed hover:text-white transition">
+              <button onClick={handleClearAllChats} className="text-[8px] bg-red-950 text-red-400 border border-red-900/60 px-2 py-1 rounded hover:bg-jazzRed hover:text-white transition">
                 <i className="fa-solid fa-trash-can mr-1"></i>전체 청소
               </button>
             )}
           </div>
-          
           <div className="flex-1 overflow-y-auto space-y-2 pr-1 feed-scroll-container">
             {chats.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-zinc-700 text-[9px] tracking-widest text-center font-light">
-                NO RECENT TALKS.
-              </div>
-            ) : (
-              chats.map(msg => (
-                <div key={msg.id} className="text-[10px] leading-relaxed bg-zinc-950 p-2 rounded border border-zinc-900/50 relative group">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="font-medium text-jazzOrange truncate max-w-[70%]">{msg.user}</span>
-                    <button 
-                      type="button" 
-                      onClick={() => handleDeleteChat(msg.id)} 
-                      className="opacity-0 group-hover:opacity-100 text-[9px] text-zinc-600 hover:text-jazzRed transition absolute top-1 right-2"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <p className="text-zinc-400 font-light break-all pr-3">{msg.text}</p>
+              <div className="flex items-center justify-center h-40 text-zinc-700 text-[9px] tracking-widest">NO RECENT TALKS.</div>
+            ) : chats.map(msg => (
+              <div key={msg.id} className="text-[10px] leading-relaxed bg-zinc-950 p-2 rounded border border-zinc-900/50 relative group">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="font-medium text-jazzOrange truncate max-w-[70%]">{msg.user}</span>
+                  <button onClick={() => handleDeleteChat(msg.id)} className="opacity-0 group-hover:opacity-100 text-[9px] text-zinc-600 hover:text-jazzRed transition absolute top-1 right-2">✕</button>
                 </div>
-              ))
-            )}
+                <p className="text-zinc-400 font-light break-all pr-3">{msg.text}</p>
+              </div>
+            ))}
             <div ref={chatEndRef} />
           </div>
         </div>
+      )}
 
-      </div>
     </div>
   );
 }
