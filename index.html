@@ -60,6 +60,13 @@ tailwind.config = {
 .lounge-card-hover { transition: border-color 0.2s, transform 0.2s; }
 .lounge-card-hover:hover { border-color: rgba(255,161,0,0.4); transform: translateY(-1px); }
 .genre-tag { font-size:9px; letter-spacing:0.12em; text-transform:uppercase; padding:2px 7px; border-radius:3px; font-weight:500; }
+
+/* ── Phill the Groove 배너 ── */
+.groove-vinyl { animation: groove-spin 12s linear infinite; animation-play-state: paused; }
+.groove-banner-wrap:hover .groove-vinyl { animation-play-state: running; }
+@keyframes groove-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.groove-reaction { transition: transform 0.15s; display: inline-block; }
+.groove-reaction:hover { transform: scale(1.3); }
 </style>
 </head>
 <body class="bg-jazzBlack text-zinc-300 font-sans min-h-screen relative flex flex-col justify-between overflow-x-hidden">
@@ -68,7 +75,6 @@ tailwind.config = {
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
-/* ─── 별점 컴포넌트 ─── */
 function StarRating({ value, onChange, readonly = false, size = 'md' }) {
   const [hovered, setHovered] = useState(0);
   const sizeClass = size === 'sm' ? 'text-xs' : size === 'lg' ? 'text-xl' : 'text-sm';
@@ -89,7 +95,6 @@ function StarRating({ value, onChange, readonly = false, size = 'md' }) {
   );
 }
 
-/* ─── 장르 색상 ─── */
 const GENRE_COLORS = {
   'Jazz':'#FFA100','Classical':'#D4A843','Blues':'#4A9EBF','R&B':'#C084FC',
   'Soul':'#F97316','Bossa Nova':'#34D399','Lo-fi':'#94A3B8','Pop':'#F472B6',
@@ -97,7 +102,6 @@ const GENRE_COLORS = {
 };
 const GENRES = Object.keys(GENRE_COLORS);
 
-/* ─── 음악 카드 ─── */
 function MusicCard({ item, onOpen }) {
   const avg = item.ratings?.length
     ? (item.ratings.reduce((s,r)=>s+r.score,0)/item.ratings.length).toFixed(1)
@@ -131,13 +135,10 @@ function MusicCard({ item, onOpen }) {
   );
 }
 
-/* ─── 음악 상세 모달 (리뷰/평점 수정·삭제 포함) ─── */
 function MusicDetailModal({ item, user, onClose, onRate, onReview, onEditReview, onDeleteReview, currentUsername }) {
   const [myRating, setMyRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  /* 수정 상태 */
   const [editingReview, setEditingReview] = useState(false);
   const [editReviewText, setEditReviewText] = useState('');
   const [editRating, setEditRating] = useState(0);
@@ -153,9 +154,7 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, onEditReview,
     }
   }, [item, user, currentUsername]);
 
-  const avg = item.ratings?.length
-    ? item.ratings.reduce((s,r)=>s+r.score,0)/item.ratings.length
-    : 0;
+  const avg = item.ratings?.length ? item.ratings.reduce((s,r)=>s+r.score,0)/item.ratings.length : 0;
   const genreColor = GENRE_COLORS[item.genre]||'#6B7280';
   const myReview = item.reviews?.find(r=>r.user===currentUsername);
 
@@ -204,8 +203,6 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, onEditReview,
         <button onClick={onClose} className="absolute top-3 right-3 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-300 hover:text-white transition">
           <i className="fa-times fa-solid text-xs"></i>
         </button>
-
-        {/* 왼쪽: 커버 + 기본 정보 */}
         <div className="w-full md:w-[42%] flex-shrink-0 flex flex-col bg-black">
           <div className="aspect-square w-full bg-zinc-950 flex items-center justify-center overflow-hidden">
             {item.coverUrl
@@ -241,35 +238,21 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, onEditReview,
             <p className="text-[9px] text-zinc-700 font-light">by {item.submittedBy} · {item.createdAt ? new Date(item.createdAt).toLocaleDateString('ko-KR') : ''}</p>
           </div>
         </div>
-
-        {/* 오른쪽: 평점 + 리뷰 */}
         <div className="flex flex-col w-full md:w-[58%] bg-jazzBlack overflow-hidden">
-
-          {/* 내 별점 */}
           <div className="p-4 border-b border-zinc-900/50 flex-shrink-0">
             <p className="text-[9px] tracking-widest text-zinc-500 uppercase mb-2.5">나의 평가</p>
             <div className="flex items-center gap-3">
-              <StarRating
-                value={editingReview ? editRating : myRating}
-                onChange={editingReview ? setEditRating : setMyRating}
-                size="lg"
-                readonly={!user || !user.emailVerified}
-              />
+              <StarRating value={editingReview ? editRating : myRating} onChange={editingReview ? setEditRating : setMyRating} size="lg" readonly={!user || !user.emailVerified} />
               {!editingReview && myRating>0 && (
-                <button onClick={handleRateSubmit} disabled={submitting}
-                  className="text-[10px] bg-jazzGold/20 border border-jazzGold/40 text-jazzGold px-3 py-1 rounded hover:bg-jazzGold/30 transition disabled:opacity-50">
+                <button onClick={handleRateSubmit} disabled={submitting} className="text-[10px] bg-jazzGold/20 border border-jazzGold/40 text-jazzGold px-3 py-1 rounded hover:bg-jazzGold/30 transition disabled:opacity-50">
                   {submitting?'...':'평가 저장'}
                 </button>
               )}
             </div>
             {!user && <p className="text-[9px] text-zinc-600 mt-1.5">로그인하면 별점을 남길 수 있어요.</p>}
           </div>
-
-          {/* 리뷰 목록 */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2.5 feed-scroll-container min-h-0">
-            <p className="text-[9px] tracking-widest text-zinc-500 uppercase mb-3">
-              Reviews <span className="text-zinc-700">({(item.reviews||[]).length})</span>
-            </p>
+            <p className="text-[9px] tracking-widest text-zinc-500 uppercase mb-3">Reviews <span className="text-zinc-700">({(item.reviews||[]).length})</span></p>
             {(item.reviews||[]).length===0
               ? <div className="flex items-center justify-center h-24 text-[10px] text-zinc-700 uppercase tracking-widest">첫 번째 리뷰를 남겨보세요.</div>
               : [...(item.reviews||[])].reverse().map((rv,i) => {
@@ -286,10 +269,8 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, onEditReview,
                           <span className="text-[8px] text-zinc-700 font-light">{rv.createdAt?new Date(rv.createdAt).toLocaleDateString('ko-KR'):''}</span>
                           {isMine && (
                             <div className="flex gap-1">
-                              <button onClick={()=>{setEditingReview(true);setEditReviewText(rv.text);setEditRating(rv.score||myRating);}}
-                                className="text-[9px] text-zinc-500 hover:text-jazzOrange transition px-1">수정</button>
-                              <button onClick={handleDeleteMyReview}
-                                className="text-[9px] text-zinc-500 hover:text-jazzRed transition px-1">삭제</button>
+                              <button onClick={()=>{setEditingReview(true);setEditReviewText(rv.text);setEditRating(rv.score||myRating);}} className="text-[9px] text-zinc-500 hover:text-jazzOrange transition px-1">수정</button>
+                              <button onClick={handleDeleteMyReview} className="text-[9px] text-zinc-500 hover:text-jazzRed transition px-1">삭제</button>
                             </div>
                           )}
                         </div>
@@ -300,53 +281,25 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, onEditReview,
               })
             }
           </div>
-
-          {/* 리뷰 작성 / 수정 폼 */}
           <div className="p-3 border-t border-zinc-900/50 bg-zinc-950/30 flex-shrink-0">
-            {/* 수정 모드 */}
             {editingReview ? (
               <form onSubmit={handleEditReviewSubmit} className="space-y-2">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-[9px] text-jazzOrange uppercase tracking-widest">리뷰 수정</p>
                   <button type="button" onClick={()=>setEditingReview(false)} className="text-[9px] text-zinc-600 hover:text-zinc-400">취소</button>
                 </div>
-                <div className="mb-1">
-                  <StarRating value={editRating} onChange={setEditRating} size="md" />
-                </div>
+                <div className="mb-1"><StarRating value={editRating} onChange={setEditRating} size="md" /></div>
                 <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={editReviewText}
-                    onChange={e=>setEditReviewText(e.target.value)}
-                    className="flex-grow bg-zinc-950 border border-jazzOrange/40 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzOrange font-light"
-                    placeholder="수정할 내용을 입력하세요..."
-                  />
-                  <button type="submit" disabled={submitting}
-                    className="bg-jazzOrange text-black text-[11px] px-3 py-1.5 rounded font-medium hover:bg-amber-500 transition disabled:opacity-40">
-                    {submitting?'...':'저장'}
-                  </button>
+                  <input type="text" value={editReviewText} onChange={e=>setEditReviewText(e.target.value)} className="flex-grow bg-zinc-950 border border-jazzOrange/40 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzOrange font-light" placeholder="수정할 내용을 입력하세요..." />
+                  <button type="submit" disabled={submitting} className="bg-jazzOrange text-black text-[11px] px-3 py-1.5 rounded font-medium hover:bg-amber-500 transition disabled:opacity-40">{submitting?'...':'저장'}</button>
                 </div>
               </form>
             ) : myReview ? (
-              /* 이미 리뷰가 있고 수정 모드 아님 */
-              <p className="text-[10px] text-zinc-600 text-center py-1.5">
-                리뷰를 수정하려면 위 리뷰의 <span className="text-zinc-400">수정</span> 버튼을 눌러주세요.
-              </p>
+              <p className="text-[10px] text-zinc-600 text-center py-1.5">리뷰를 수정하려면 위 리뷰의 <span className="text-zinc-400">수정</span> 버튼을 눌러주세요.</p>
             ) : (
-              /* 새 리뷰 작성 */
               <form onSubmit={handleReviewSubmit} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder={user ? "이 음악에 대한 리뷰를 남겨주세요..." : "로그인 후 리뷰를 작성할 수 있습니다."}
-                  value={reviewText}
-                  onChange={e=>setReviewText(e.target.value)}
-                  disabled={!user||!user.emailVerified}
-                  className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzOrange disabled:opacity-40 font-light"
-                />
-                <button type="submit" disabled={!user||!user.emailVerified||submitting}
-                  className="bg-jazzOrange text-black text-[11px] px-3 py-1.5 rounded font-medium hover:bg-amber-500 transition disabled:opacity-40">
-                  게시
-                </button>
+                <input type="text" placeholder={user ? "이 음악에 대한 리뷰를 남겨주세요..." : "로그인 후 리뷰를 작성할 수 있습니다."} value={reviewText} onChange={e=>setReviewText(e.target.value)} disabled={!user||!user.emailVerified} className="flex-grow bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-jazzOrange disabled:opacity-40 font-light" />
+                <button type="submit" disabled={!user||!user.emailVerified||submitting} className="bg-jazzOrange text-black text-[11px] px-3 py-1.5 rounded font-medium hover:bg-amber-500 transition disabled:opacity-40">게시</button>
               </form>
             )}
           </div>
@@ -356,10 +309,103 @@ function MusicDetailModal({ item, user, onClose, onRate, onReview, onEditReview,
   );
 }
 
+function GrooveBanner() {
+  return (
+    <div className="w-full flex justify-center px-3 md:px-4 z-10 mt-3 mb-20 md:mb-3">
+      <div className="w-full max-w-[980px]">
+        <div className="groove-banner-wrap relative overflow-hidden bg-jazzCard/65 backdrop-blur-xl rounded-2xl shadow-2xl p-4 md:p-5"
+             style={{border:'1px solid rgba(63,63,70,0.3)', backgroundImage:'repeating-linear-gradient(90deg,transparent,transparent 2px,rgba(255,161,0,0.012) 2px,rgba(255,161,0,0.012) 4px)'}}>
 
-/* ═══════════════════════════════════════
-   메인 앱
-═══════════════════════════════════════ */
+          {/* 헤더 라인 */}
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1 h-4 bg-jazzOrange rounded-full"></div>
+            <span className="text-zinc-400 font-light" style={{fontSize:'9px',letterSpacing:'0.22em',textTransform:'uppercase'}}>Community Space</span>
+            <div className="flex-1" style={{height:'1px',background:'rgba(63,63,70,0.6)'}}></div>
+            <span className="text-zinc-600" style={{fontSize:'8px',letterSpacing:'0.12em',textTransform:'uppercase'}}>New</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse ml-1"></div>
+          </div>
+
+          {/* 메인 */}
+          <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-center">
+
+            {/* 왼쪽 */}
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              {/* 바이닐 */}
+              <div className="relative flex-shrink-0" style={{width:'60px',height:'60px'}}>
+                <div className="groove-vinyl w-full h-full rounded-full flex items-center justify-center"
+                     style={{border:'2px solid rgba(63,63,70,0.6)',background:'radial-gradient(circle at 30% 30%, #2a2a2a, #0a0a0a)',boxShadow:'inset 0 0 12px rgba(0,0,0,0.8), 0 0 20px rgba(212,168,67,0.08)'}}>
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center"
+                       style={{background:'radial-gradient(circle, #3d2a10, #1a0f05)',border:'1px solid rgba(212,168,67,0.3)'}}>
+                    <div className="w-1.5 h-1.5 rounded-full" style={{background:'#0a0a0a',border:'1px solid #3f3f46'}}></div>
+                  </div>
+                </div>
+                <div className="absolute top-1 right-2 w-1 h-1 rounded-full" style={{background:'rgba(212,168,67,0.4)'}}></div>
+              </div>
+
+              {/* 텍스트 */}
+              <div className="min-w-0">
+                <div className="mb-1.5">
+                  <span style={{fontSize:'8px',letterSpacing:'0.18em',textTransform:'uppercase',padding:'2px 8px',borderRadius:'3px',background:'rgba(255,161,0,0.12)',color:'#FFA100',border:'1px solid rgba(255,161,0,0.25)'}}>
+                    Phill the Groove
+                  </span>
+                </div>
+                <h3 className="font-light text-white tracking-wide leading-snug" style={{fontSize:'15px'}}>
+                  음악을 추천하고, 반응을 받고,{' '}
+                  <span className="text-jazzOrange">랭크</span>를 쌓아보세요.
+                </h3>
+                <p className="text-zinc-500 font-light mt-1 leading-relaxed" style={{fontSize:'10px'}}>
+                  커뮤니티 음악 추천 공간 — Drop a pick, earn your rank.
+                </p>
+              </div>
+            </div>
+
+            {/* 오른쪽 */}
+            <div className="flex flex-col gap-3 flex-shrink-0 w-full md:w-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-600 font-light" style={{fontSize:'9px',letterSpacing:'0.12em',textTransform:'uppercase'}}>Reactions</span>
+                <div className="flex gap-1.5" style={{fontSize:'16px'}}>
+                  {['🔴','🟠','🟡','🔵','⚫'].map((e,i) => (
+                    <span key={i} className="groove-reaction" style={{cursor:'default'}}>{e}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-600 font-light" style={{fontSize:'9px',letterSpacing:'0.12em',textTransform:'uppercase'}}>Ranks</span>
+                <div className="flex gap-1.5" style={{fontSize:'13px'}}>
+                  {['🌱','🎧','🔥','💎','👑'].map((e,i) => <span key={i}>{e}</span>)}
+                </div>
+              </div>
+              <a href="https://phill-the-groove.netlify.app"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 className="group flex items-center justify-center gap-2 rounded-lg transition-all duration-200 font-medium"
+                 style={{padding:'10px 20px',border:'1px solid rgba(255,161,0,0.4)',background:'rgba(255,161,0,0.08)',color:'#FFA100',fontSize:'11px',letterSpacing:'0.15em',textTransform:'uppercase',textDecoration:'none'}}
+                 onMouseOver={e=>e.currentTarget.style.background='rgba(255,161,0,0.18)'}
+                 onMouseOut={e=>e.currentTarget.style.background='rgba(255,161,0,0.08)'}>
+                <i className="fa-solid fa-record-vinyl text-xs"></i>
+                <span>Enter the Groove</span>
+                <i className="fa-solid fa-arrow-up-right-from-square" style={{fontSize:'9px',opacity:'0.6'}}></i>
+              </a>
+            </div>
+          </div>
+
+          {/* 하단 */}
+          <div className="mt-4 pt-3 flex items-center justify-between" style={{borderTop:'1px solid rgba(24,24,27,0.5)'}}>
+            <p className="text-zinc-700 font-light tracking-wider" style={{fontSize:'9px'}}>
+              🎵 음악으로 연결되는 또 다른 Phill 공간
+            </p>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1 h-1 rounded-full" style={{background:'rgba(255,161,0,0.4)'}}></div>
+              <div className="w-3" style={{height:'1px',background:'#27272a'}}></div>
+              <div className="w-1 h-1 rounded-full" style={{background:'rgba(255,42,26,0.4)'}}></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [feeds, setFeeds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -367,24 +413,18 @@ function App() {
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
   const [commentInputs, setCommentInputs] = useState({});
   const audioRef = useRef(null);
-
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const isDragging = useRef(false);
-
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
-
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef(null);
-
   const [activeTab, setActiveTab] = useState('archive');
-
-  /* ─── Music Lounge 상태 ─── */
   const [loungeItems, setLoungeItems] = useState([]);
   const [loungeLoading, setLoungeLoading] = useState(true);
   const [selectedMusic, setSelectedMusic] = useState(null);
@@ -394,59 +434,35 @@ function App() {
 
   useEffect(() => {
     let unsubFeeds, unsubChats, unsubLounge, unsubAuth;
-
     const initFirestore = () => {
       const { db, collection, query, orderBy, onSnapshot } = window.__firestore;
-
       unsubFeeds = onSnapshot(query(collection(db,'feeds'), orderBy('createdAt','desc')), snap => {
         const data = snap.docs.map(d=>({id:d.id,...d.data()}));
-        setFeeds(data);
-        setLoading(false);
+        setFeeds(data); setLoading(false);
         setSelectedFeed(prev => prev ? (data.find(f=>f.id===prev.id)||null) : null);
       });
-
       unsubChats = onSnapshot(query(collection(db,'chats'), orderBy('createdAt','asc')), snap => {
         setChatMessages(snap.docs.map(d=>({id:d.id,...d.data()})));
       });
-
       unsubLounge = onSnapshot(query(collection(db,'music_lounge'), orderBy('createdAt','desc')), snap => {
         const data = snap.docs.map(d=>({id:d.id,...d.data()}));
-        setLoungeItems(data);
-        setLoungeLoading(false);
+        setLoungeItems(data); setLoungeLoading(false);
         setSelectedMusic(prev => prev ? (data.find(m=>m.id===prev.id)||null) : null);
       });
     };
-
     const initAuth = () => {
       const { auth, onAuthStateChanged } = window.__auth;
       return onAuthStateChanged(auth, u => setUser(u));
     };
-
-    if (window.__firestore && window.__auth) {
-      initFirestore();
-      unsubAuth = initAuth();
-    } else {
-      window.addEventListener('firebase-ready', () => {
-        initFirestore();
-        unsubAuth = initAuth();
-      }, { once: true });
-    }
-
-    return () => {
-      if (unsubFeeds) unsubFeeds();
-      if (unsubChats) unsubChats();
-      if (unsubLounge) unsubLounge();
-      if (unsubAuth) unsubAuth();
-    };
+    if (window.__firestore && window.__auth) { initFirestore(); unsubAuth = initAuth(); }
+    else { window.addEventListener('firebase-ready', () => { initFirestore(); unsubAuth = initAuth(); }, { once: true }); }
+    return () => { if(unsubFeeds)unsubFeeds(); if(unsubChats)unsubChats(); if(unsubLounge)unsubLounge(); if(unsubAuth)unsubAuth(); };
   }, []);
 
-  useEffect(() => {
-    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior:'smooth' });
-  }, [chatMessages, activeTab]);
+  useEffect(() => { if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior:'smooth' }); }, [chatMessages, activeTab]);
 
   const currentUsername = user ? user.email.split('@')[0] : '';
 
-  /* ─── Lounge: 별점 저장 (upsert) ─── */
   const handleRate = async (musicId, score) => {
     const { db, doc, updateDoc } = window.__firestore;
     const item = loungeItems.find(m=>m.id===musicId);
@@ -454,8 +470,6 @@ function App() {
     const newRatings = [...(item.ratings||[]).filter(r=>r.user!==currentUsername), { user:currentUsername, score }];
     await updateDoc(doc(db,'music_lounge',musicId), { ratings:newRatings });
   };
-
-  /* ─── Lounge: 리뷰 작성 ─── */
   const handleReview = async (musicId, text) => {
     const { db, doc, updateDoc } = window.__firestore;
     const item = loungeItems.find(m=>m.id===musicId);
@@ -464,22 +478,14 @@ function App() {
     const newReview = { user:currentUsername, text, score:myRating?myRating.score:0, createdAt:Date.now() };
     await updateDoc(doc(db,'music_lounge',musicId), { reviews:[...(item.reviews||[]), newReview] });
   };
-
-  /* ─── Lounge: 리뷰 수정 ─── */
   const handleEditReview = async (musicId, text, score) => {
     const { db, doc, updateDoc } = window.__firestore;
     const item = loungeItems.find(m=>m.id===musicId);
     if (!item) return;
-    const updatedReviews = (item.reviews||[]).map(r =>
-      r.user === currentUsername ? { ...r, text, score, editedAt: Date.now() } : r
-    );
-    const updatedRatings = score > 0
-      ? [...(item.ratings||[]).filter(r=>r.user!==currentUsername), { user:currentUsername, score }]
-      : item.ratings;
+    const updatedReviews = (item.reviews||[]).map(r => r.user === currentUsername ? { ...r, text, score, editedAt: Date.now() } : r);
+    const updatedRatings = score > 0 ? [...(item.ratings||[]).filter(r=>r.user!==currentUsername), { user:currentUsername, score }] : item.ratings;
     await updateDoc(doc(db,'music_lounge',musicId), { reviews:updatedReviews, ratings:updatedRatings });
   };
-
-  /* ─── Lounge: 내 리뷰 + 평점 삭제 ─── */
   const handleDeleteReview = async (musicId) => {
     const { db, doc, updateDoc } = window.__firestore;
     const item = loungeItems.find(m=>m.id===musicId);
@@ -490,27 +496,18 @@ function App() {
     });
   };
 
-  /* ─── Lounge: 필터 + 정렬 + 검색 ─── */
   const filteredLounge = loungeItems
     .filter(item => {
       if (loungeFilter !== 'All' && item.genre !== loungeFilter) return false;
-      if (loungeSearch.trim()) {
-        const q = loungeSearch.trim().toLowerCase();
-        return item.title.toLowerCase().includes(q) || item.artist.toLowerCase().includes(q);
-      }
+      if (loungeSearch.trim()) { const q = loungeSearch.trim().toLowerCase(); return item.title.toLowerCase().includes(q) || item.artist.toLowerCase().includes(q); }
       return true;
     })
     .sort((a,b) => {
-      if (loungeSort==='rating') {
-        const avgA = a.ratings?.length ? a.ratings.reduce((s,r)=>s+r.score,0)/a.ratings.length : 0;
-        const avgB = b.ratings?.length ? b.ratings.reduce((s,r)=>s+r.score,0)/b.ratings.length : 0;
-        return avgB-avgA;
-      }
+      if (loungeSort==='rating') { const avgA = a.ratings?.length?a.ratings.reduce((s,r)=>s+r.score,0)/a.ratings.length:0; const avgB = b.ratings?.length?b.ratings.reduce((s,r)=>s+r.score,0)/b.ratings.length:0; return avgB-avgA; }
       if (loungeSort==='reviews') return (b.reviews?.length||0)-(a.reviews?.length||0);
       return b.createdAt-a.createdAt;
     });
 
-  /* ─── 채팅 전송 ─── */
   const handleSendChatMessage = async (e) => {
     e.preventDefault();
     if (!user) { alert("채팅에 참여하려면 로그인해 주세요."); setAuthMode('login'); setShowAuthModal(true); return; }
@@ -521,8 +518,6 @@ function App() {
     await addDoc(collection(db,'chats'), { user:currentUsername, text, createdAt:Date.now() }).catch(console.error);
     setChatInput('');
   };
-
-  /* ─── Archive 댓글 ─── */
   const handleAddComment = async (e, feedId) => {
     e.preventDefault();
     if (!user) { alert("방명록을 남기려면 로그인해 주세요."); setAuthMode('login'); setShowAuthModal(true); return; }
@@ -534,14 +529,12 @@ function App() {
     setCommentInputs({...commentInputs,[feedId]:""});
   };
 
-  /* ─── Image slide ─── */
   const nextImage = (n) => setCurrentImgIdx(p=>(p+1)%n);
   const prevImage = (n) => setCurrentImgIdx(p=>(p-1+n)%n);
   const handleTouchStart = (e) => { touchStartX.current=e.touches?.[0].clientX??e.clientX; touchEndX.current=touchStartX.current; isDragging.current=true; };
   const handleTouchMove = (e) => { if(isDragging.current) touchEndX.current=e.touches?.[0].clientX??e.clientX; };
   const handleTouchEnd = (n) => { if(!isDragging.current)return; isDragging.current=false; const d=touchStartX.current-touchEndX.current; if(Math.abs(d)>40) d>0?nextImage(n):prevImage(n); };
 
-  /* ─── Auth ─── */
   const handleSignIn = (e) => { e.preventDefault(); const {auth,signInWithEmailAndPassword}=window.__auth; signInWithEmailAndPassword(auth,authEmail,authPassword).then(uc=>{if(!uc.user.emailVerified)alert("이메일 인증을 먼저 완료해 주세요.");else alert("재즈바에 입장하셨습니다.");closeAuthModal();}).catch(()=>alert("이메일 또는 비밀번호를 다시 확인하세요.")); };
   const handleSignUp = (e) => { e.preventDefault(); const {auth,createUserWithEmailAndPassword,sendEmailVerification}=window.__auth; createUserWithEmailAndPassword(auth,authEmail,authPassword).then(uc=>{sendEmailVerification(uc.user).then(()=>{alert("인증 메일을 발송했습니다. 인증 완료 후 로그인해 주세요.");window.__auth.signOut(auth);setAuthMode('login');});}).catch(err=>alert(`회원가입 실패: ${err.message}`)); };
   const handleFindPassword = (e) => { e.preventDefault(); const {auth,sendPasswordResetEmail}=window.__auth; sendPasswordResetEmail(auth,authEmail).then(()=>{alert("비밀번호 재설정 링크를 발송했습니다.");setAuthMode('login');}).catch(()=>alert("해당 이메일 계정을 찾을 수 없습니다.")); };
@@ -550,12 +543,9 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col justify-between relative">
-      {/* 배경 glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-to-br from-jazzRed via-jazzOrange to-transparent opacity-10 blur-[160px] pointer-events-none z-0"></div>
-
       <audio ref={audioRef} src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" loop />
 
-      {/* 헤더 */}
       <header className="w-full py-5 px-6 sticky top-0 bg-jazzBlack/80 backdrop-blur-md z-40 border-b border-zinc-900/40 flex items-center justify-between">
         <div className="w-16"></div>
         <div className="text-center">
@@ -574,11 +564,9 @@ function App() {
         </div>
       </header>
 
-      {/* 메인 */}
-      <main className="flex-1 w-full flex justify-center p-3 md:p-4 z-10 pb-32 md:pb-4">
+      <main className="flex-1 w-full flex flex-col items-center p-3 md:p-4 z-10 pb-32 md:pb-4 gap-3">
+        {/* 메인 카드 */}
         <div className="w-full max-w-[980px] bg-jazzCard/65 backdrop-blur-xl rounded-2xl border border-zinc-800/30 shadow-2xl flex flex-col md:flex-row md:h-[600px] overflow-hidden">
-
-          {/* ── 1. Sound Archive ─── */}
           <div className={`w-full md:w-[60%] p-4 flex flex-col h-full md:border-r border-zinc-900/60 ${activeTab==='archive'?'flex':'hidden md:flex'}`}>
             <div className="mb-3 px-1 flex items-center gap-2 flex-shrink-0">
               <span className="text-[10px] tracking-widest text-zinc-400 uppercase font-light">SOUND ARCHIVE</span>
@@ -621,19 +609,14 @@ function App() {
             </div>
           </div>
 
-          {/* ── 2. Music Lounge + Chat (오른쪽 패널) ─── */}
           <div className={`w-full md:w-[40%] flex flex-col bg-black/15 overflow-hidden ${activeTab==='lounge'?'flex':activeTab==='archive'?'hidden md:flex':'hidden md:flex'}`}
                style={{ height: activeTab==='lounge' ? 'calc(100vh - 220px)' : undefined }}>
-
-            {/* 서브탭 헤더 */}
             <div className="p-3 border-b border-zinc-900/50 bg-black/20 flex-shrink-0">
               <div className="hidden md:flex gap-1">
-                <button onClick={()=>setActiveTab('lounge')}
-                  className={`text-[9px] tracking-widest uppercase px-3 py-1 rounded transition ${activeTab==='lounge'||activeTab==='archive'?'bg-jazzOrange/20 text-jazzOrange border border-jazzOrange/30':'text-zinc-600'}`}>
+                <button onClick={()=>setActiveTab('lounge')} className={`text-[9px] tracking-widest uppercase px-3 py-1 rounded transition ${activeTab==='lounge'||activeTab==='archive'?'bg-jazzOrange/20 text-jazzOrange border border-jazzOrange/30':'text-zinc-600'}`}>
                   <i className="fa-solid fa-headphones mr-1"></i>Music Lounge
                 </button>
-                <button onClick={()=>setActiveTab('chat')}
-                  className={`text-[9px] tracking-widest uppercase px-3 py-1 rounded transition ${activeTab==='chat'?'bg-jazzRed/20 text-jazzRed border border-jazzRed/30':'text-zinc-600'}`}>
+                <button onClick={()=>setActiveTab('chat')} className={`text-[9px] tracking-widest uppercase px-3 py-1 rounded transition ${activeTab==='chat'?'bg-jazzRed/20 text-jazzRed border border-jazzRed/30':'text-zinc-600'}`}>
                   <span className="w-1 h-1 rounded-full bg-jazzRed inline-block mr-1 animate-pulse"></span>Lounge Chat
                 </button>
               </div>
@@ -644,60 +627,31 @@ function App() {
                 </div>
               </div>
             </div>
-
-            {/* Music Lounge 콘텐츠 */}
             <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${(activeTab==='lounge'||activeTab==='archive')?'flex':'hidden'}`}>
-              {/* 툴바: 등록 버튼 없음 (관리자 전용) */}
               <div className="px-3 py-2.5 border-b border-zinc-900/40 flex-shrink-0 space-y-2">
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <i className="fa-solid fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600 text-[10px]"></i>
-                    <input type="text" placeholder="곡명 또는 아티스트 검색..."
-                      value={loungeSearch} onChange={e=>setLoungeSearch(e.target.value)}
-                      className="w-full bg-zinc-950/70 border border-zinc-800 rounded pl-7 pr-3 py-1.5 text-[11px] text-white focus:outline-none focus:border-jazzOrange font-light"
-                    />
+                    <input type="text" placeholder="곡명 또는 아티스트 검색..." value={loungeSearch} onChange={e=>setLoungeSearch(e.target.value)} className="w-full bg-zinc-950/70 border border-zinc-800 rounded pl-7 pr-3 py-1.5 text-[11px] text-white focus:outline-none focus:border-jazzOrange font-light" />
                   </div>
                 </div>
-                {/* 장르 필터 */}
                 <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{scrollbarWidth:'none'}}>
                   {['All',...GENRES].map(g=>(
-                    <button key={g} onClick={()=>setLoungeFilter(g)}
-                      className={`flex-shrink-0 text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition ${loungeFilter===g?'bg-jazzOrange text-black font-medium':'bg-zinc-900/60 text-zinc-500 hover:text-zinc-300'}`}>
-                      {g}
-                    </button>
+                    <button key={g} onClick={()=>setLoungeFilter(g)} className={`flex-shrink-0 text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition ${loungeFilter===g?'bg-jazzOrange text-black font-medium':'bg-zinc-900/60 text-zinc-500 hover:text-zinc-300'}`}>{g}</button>
                   ))}
                 </div>
-                {/* 정렬 */}
                 <div className="flex gap-2">
                   {[['recent','최신순'],['rating','별점순'],['reviews','리뷰순']].map(([val,label])=>(
-                    <button key={val} onClick={()=>setLoungeSort(val)}
-                      className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition ${loungeSort===val?'text-white bg-zinc-700':'text-zinc-600 hover:text-zinc-400'}`}>
-                      {label}
-                    </button>
+                    <button key={val} onClick={()=>setLoungeSort(val)} className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition ${loungeSort===val?'text-white bg-zinc-700':'text-zinc-600 hover:text-zinc-400'}`}>{label}</button>
                   ))}
                 </div>
               </div>
-              {/* 음악 목록 */}
               <div className="flex-1 overflow-y-auto p-3 space-y-2 feed-scroll-container">
-                {loungeLoading && (
-                  <div className="flex flex-col items-center justify-center h-32 text-zinc-600 text-[10px] uppercase tracking-widest gap-2">
-                    <i className="fa-solid fa-compact-disc animate-spin"></i>
-                    <span>Loading Lounge...</span>
-                  </div>
-                )}
-                {!loungeLoading && filteredLounge.length===0 && (
-                  <div className="flex flex-col items-center justify-center h-32 text-zinc-700 text-[10px] uppercase tracking-widest gap-2 text-center">
-                    <i className="fa-solid fa-music text-zinc-800 text-2xl"></i>
-                    <span>등록된 음악이 없습니다.</span>
-                  </div>
-                )}
-                {!loungeLoading && filteredLounge.map(item=>(
-                  <MusicCard key={item.id} item={item} onOpen={setSelectedMusic} />
-                ))}
+                {loungeLoading && <div className="flex flex-col items-center justify-center h-32 text-zinc-600 text-[10px] uppercase tracking-widest gap-2"><i className="fa-solid fa-compact-disc animate-spin"></i><span>Loading Lounge...</span></div>}
+                {!loungeLoading && filteredLounge.length===0 && <div className="flex flex-col items-center justify-center h-32 text-zinc-700 text-[10px] uppercase tracking-widest gap-2 text-center"><i className="fa-solid fa-music text-zinc-800 text-2xl"></i><span>등록된 음악이 없습니다.</span></div>}
+                {!loungeLoading && filteredLounge.map(item=><MusicCard key={item.id} item={item} onOpen={setSelectedMusic} />)}
               </div>
             </div>
-
-            {/* Lounge Chat 콘텐츠 */}
             <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${activeTab==='chat'?'flex':'hidden'}`}>
               <div className="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-900/30 flex-shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse"></span>
@@ -720,42 +674,29 @@ function App() {
               </div>
               <form onSubmit={handleSendChatMessage} className="p-3 border-t border-zinc-900/50 flex gap-2 bg-jazzBlack/40">
                 <input type="text" placeholder={user?"공간에 어울리는 이야기를...":"로그인 후 참여해보세요."} value={chatInput} onChange={e=>setChatInput(e.target.value)} disabled={!user} className="flex-grow bg-zinc-950/80 border border-zinc-800/80 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzRed font-light disabled:opacity-40" />
-                <button type="submit" disabled={!user} className="bg-jazzRed text-white text-xs px-3.5 py-2 rounded font-medium hover:bg-red-700 transition disabled:opacity-40">
-                  <i className="fa-solid fa-paper-plane text-[10px]"></i>
-                </button>
+                <button type="submit" disabled={!user} className="bg-jazzRed text-white text-xs px-3.5 py-2 rounded font-medium hover:bg-red-700 transition disabled:opacity-40"><i className="fa-solid fa-paper-plane text-[10px]"></i></button>
               </form>
             </div>
           </div>
-
         </div>
+
+        {/* ★ Phill the Groove 배너 ★ */}
+        <GrooveBanner />
       </main>
 
-      {/* ── 모바일 하단 탭 ─── */}
+      {/* 모바일 하단 탭 */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-[53px] bg-jazzCard/95 backdrop-blur-lg border-t border-zinc-900 flex z-30">
-        <button onClick={()=>setActiveTab('archive')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab==='archive'?'text-jazzRed font-medium':'text-zinc-600'}`}>
-          <i className="fa-solid fa-compact-disc text-xs"></i><span>Sounds</span>
-        </button>
+        <button onClick={()=>setActiveTab('archive')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab==='archive'?'text-jazzRed font-medium':'text-zinc-600'}`}><i className="fa-solid fa-compact-disc text-xs"></i><span>Sounds</span></button>
         <div className="w-[1px] h-6 bg-zinc-900 my-auto"></div>
-        <button onClick={()=>setActiveTab('lounge')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab==='lounge'?'text-jazzOrange font-medium':'text-zinc-600'}`}>
-          <i className="fa-solid fa-headphones text-xs"></i><span>Lounge</span>
-        </button>
+        <button onClick={()=>setActiveTab('lounge')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab==='lounge'?'text-jazzOrange font-medium':'text-zinc-600'}`}><i className="fa-solid fa-headphones text-xs"></i><span>Lounge</span></button>
         <div className="w-[1px] h-6 bg-zinc-900 my-auto"></div>
-        <button onClick={()=>setActiveTab('chat')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab==='chat'?'text-jazzRed font-medium':'text-zinc-600'}`}>
-          <div className="relative">
-            <i className="fa-solid fa-comments text-xs"></i>
-            <span className="absolute -top-1 -right-2 w-1 h-1 rounded-full bg-jazzRed animate-pulse"></span>
-          </div>
-          <span>Chat</span>
-        </button>
+        <button onClick={()=>setActiveTab('chat')} className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] tracking-widest uppercase transition ${activeTab==='chat'?'text-jazzRed font-medium':'text-zinc-600'}`}><div className="relative"><i className="fa-solid fa-comments text-xs"></i><span className="absolute -top-1 -right-2 w-1 h-1 rounded-full bg-jazzRed animate-pulse"></span></div><span>Chat</span></button>
       </div>
 
-      {/* ── 모바일 Chat 탭 ─── */}
+      {/* 모바일 Chat 탭 */}
       {activeTab==='chat' && (
         <div className="md:hidden fixed inset-0 top-[60px] bottom-[53px] bg-jazzBlack z-20 flex flex-col">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-900/50 bg-black/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse"></span>
-            <span className="text-[10px] tracking-widest text-zinc-300 uppercase font-light">Lounge Live Chat</span>
-          </div>
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-900/50 bg-black/20"><span className="w-1.5 h-1.5 rounded-full bg-jazzRed animate-pulse"></span><span className="text-[10px] tracking-widest text-zinc-300 uppercase font-light">Lounge Live Chat</span></div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3 feed-scroll-container">
             {chatMessages.length===0
               ? <div className="h-full flex items-center justify-center text-zinc-600 text-[10px] font-light tracking-widest text-center">BAR LOUNGE IS QUIET.<br/>LEAVE A NOTE FIRST.</div>
@@ -767,78 +708,67 @@ function App() {
                   </div>
                   <span className="text-zinc-300 font-light break-all">{msg.text}</span>
                 </div>
-              ))
-            }
+              ))}
             <div ref={chatEndRef} />
           </div>
           <form onSubmit={handleSendChatMessage} className="p-3 border-t border-zinc-900/50 flex gap-2 bg-jazzBlack/80">
             <input type="text" placeholder={user?"공간에 어울리는 이야기를...":"로그인 후 참여해보세요."} value={chatInput} onChange={e=>setChatInput(e.target.value)} disabled={!user} className="flex-grow bg-zinc-950/80 border border-zinc-800/80 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-jazzRed font-light disabled:opacity-40" />
-            <button type="submit" disabled={!user} className="bg-jazzRed text-white text-xs px-3.5 py-2 rounded font-medium hover:bg-red-700 transition disabled:opacity-40">
-              <i className="fa-solid fa-paper-plane text-[10px]"></i>
-            </button>
+            <button type="submit" disabled={!user} className="bg-jazzRed text-white text-xs px-3.5 py-2 rounded font-medium hover:bg-red-700 transition disabled:opacity-40"><i className="fa-solid fa-paper-plane text-[10px]"></i></button>
           </form>
         </div>
       )}
 
-      {/* ── 인증 모달 ─── */}
+      {/* 인증 모달 */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="relative w-full max-w-sm bg-jazzCard rounded-2xl border border-zinc-800 p-8 shadow-2xl text-center space-y-5">
             <button onClick={closeAuthModal} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-sm"><i className="fa-times fa-solid"></i></button>
-            {authMode==='login' && (
-              <>
-                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Jazzbar Access Space</h2>
-                <form onSubmit={handleSignIn} className="space-y-3 pt-2">
-                  <input type="email" placeholder="이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
-                  <input type="password" placeholder="비밀번호" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
-                  <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SIGN IN</button>
-                </form>
-                <div className="flex justify-center gap-4 text-[10px] text-zinc-500 pt-2">
-                  <button onClick={()=>{setAuthMode('signup');setAuthEmail('');setAuthPassword('');}} className="hover:text-zinc-300 transition">회원가입</button>
-                  <span className="text-zinc-800">|</span>
-                  <button onClick={()=>setAuthMode('findId')} className="hover:text-zinc-300 transition">아이디 찾기</button>
-                  <span className="text-zinc-800">|</span>
-                  <button onClick={()=>{setAuthMode('findPw');setAuthEmail('');}} className="hover:text-zinc-300 transition">비밀번호 찾기</button>
-                </div>
-              </>
-            )}
-            {authMode==='signup' && (
-              <>
-                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Create Account</h2>
-                <form onSubmit={handleSignUp} className="space-y-3 pt-2">
-                  <input type="email" placeholder="사용할 이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
-                  <input type="password" placeholder="비밀번호 (6자리 이상)" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
-                  <button type="submit" className="w-full bg-jazzOrange text-black text-xs py-2.5 rounded font-medium hover:bg-amber-600 transition">REGISTER</button>
-                </form>
-                <div className="pt-2"><button onClick={()=>{setAuthMode('login');setAuthEmail('');setAuthPassword('');}} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition">이미 계정이 있으신가요? 로그인</button></div>
-              </>
-            )}
-            {authMode==='findId' && (
-              <>
-                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Find Email Account</h2>
-                <div className="text-left text-xs text-zinc-400 font-light leading-relaxed p-4 bg-zinc-950/50 rounded border border-zinc-900 space-y-2">
-                  <p>본 플랫폼은 별도의 개인정보를 수집하지 않으며, <strong className="text-jazzOrange">이메일 주소 자체를 고유 ID</strong>로 사용합니다.</p>
-                  <p>사용하셨던 메일함에서 <span className="text-zinc-200">"phill-bar"</span> 발신 인증 메일을 확인해 주세요.</p>
-                </div>
-                <button onClick={()=>setAuthMode('login')} className="w-full bg-zinc-800 text-zinc-300 text-xs py-2 rounded hover:bg-zinc-700 transition">로그인 화면으로 돌아가기</button>
-              </>
-            )}
-            {authMode==='findPw' && (
-              <>
-                <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Reset Password</h2>
-                <p className="text-[11px] text-zinc-500 font-light">가입하셨던 이메일 주소를 입력하시면<br/>비밀번호 재설정 링크를 보내드립니다.</p>
-                <form onSubmit={handleFindPassword} className="space-y-3 pt-2">
-                  <input type="email" placeholder="가입한 이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
-                  <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SEND RESET LINK</button>
-                </form>
-                <button onClick={()=>setAuthMode('login')} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition">로그인 화면으로 돌아가기</button>
-              </>
-            )}
+            {authMode==='login' && (<>
+              <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Jazzbar Access Space</h2>
+              <form onSubmit={handleSignIn} className="space-y-3 pt-2">
+                <input type="email" placeholder="이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                <input type="password" placeholder="비밀번호" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SIGN IN</button>
+              </form>
+              <div className="flex justify-center gap-4 text-[10px] text-zinc-500 pt-2">
+                <button onClick={()=>{setAuthMode('signup');setAuthEmail('');setAuthPassword('');}} className="hover:text-zinc-300 transition">회원가입</button>
+                <span className="text-zinc-800">|</span>
+                <button onClick={()=>setAuthMode('findId')} className="hover:text-zinc-300 transition">아이디 찾기</button>
+                <span className="text-zinc-800">|</span>
+                <button onClick={()=>{setAuthMode('findPw');setAuthEmail('');}} className="hover:text-zinc-300 transition">비밀번호 찾기</button>
+              </div>
+            </>)}
+            {authMode==='signup' && (<>
+              <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Create Account</h2>
+              <form onSubmit={handleSignUp} className="space-y-3 pt-2">
+                <input type="email" placeholder="사용할 이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                <input type="password" placeholder="비밀번호 (6자리 이상)" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                <button type="submit" className="w-full bg-jazzOrange text-black text-xs py-2.5 rounded font-medium hover:bg-amber-600 transition">REGISTER</button>
+              </form>
+              <div className="pt-2"><button onClick={()=>{setAuthMode('login');setAuthEmail('');setAuthPassword('');}} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition">이미 계정이 있으신가요? 로그인</button></div>
+            </>)}
+            {authMode==='findId' && (<>
+              <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Find Email Account</h2>
+              <div className="text-left text-xs text-zinc-400 font-light leading-relaxed p-4 bg-zinc-950/50 rounded border border-zinc-900 space-y-2">
+                <p>본 플랫폼은 별도의 개인정보를 수집하지 않으며, <strong className="text-jazzOrange">이메일 주소 자체를 고유 ID</strong>로 사용합니다.</p>
+                <p>사용하셨던 메일함에서 <span className="text-zinc-200">"phill-bar"</span> 발신 인증 메일을 확인해 주세요.</p>
+              </div>
+              <button onClick={()=>setAuthMode('login')} className="w-full bg-zinc-800 text-zinc-300 text-xs py-2 rounded hover:bg-zinc-700 transition">로그인 화면으로 돌아가기</button>
+            </>)}
+            {authMode==='findPw' && (<>
+              <h2 className="text-xs tracking-[0.25em] text-white uppercase font-light">Reset Password</h2>
+              <p className="text-[11px] text-zinc-500 font-light">가입하셨던 이메일 주소를 입력하시면<br/>비밀번호 재설정 링크를 보내드립니다.</p>
+              <form onSubmit={handleFindPassword} className="space-y-3 pt-2">
+                <input type="email" placeholder="가입한 이메일 계정" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-white focus:outline-none focus:border-jazzRed font-light" required />
+                <button type="submit" className="w-full bg-jazzRed text-white text-xs py-2.5 rounded font-medium hover:bg-red-700 transition">SEND RESET LINK</button>
+              </form>
+              <button onClick={()=>setAuthMode('login')} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition">로그인 화면으로 돌아가기</button>
+            </>)}
           </div>
         </div>
       )}
 
-      {/* ── Archive 피드 모달 ─── */}
+      {/* Archive 피드 모달 */}
       {selectedFeed && (() => {
         const images = selectedFeed.coverImage ? selectedFeed.coverImage.split('\n').filter(Boolean) : [];
         const hasImg = images.length>0;
@@ -847,19 +777,16 @@ function App() {
           <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
             <div className="relative w-full max-w-[850px] h-full max-h-[85vh] bg-jazzCard rounded-2xl border border-zinc-800 flex flex-col md:flex-row shadow-2xl overflow-y-auto md:overflow-hidden">
               <button onClick={()=>setSelectedFeed(null)} className="absolute top-3 right-3 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-300 hover:text-white transition"><i className="fa-times fa-solid text-xs"></i></button>
-              <div className="w-full md:w-1/2 aspect-square flex-shrink-0 bg-black relative overflow-hidden select-none"
-                onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={()=>handleTouchEnd(images.length)}>
+              <div className="w-full md:w-1/2 aspect-square flex-shrink-0 bg-black relative overflow-hidden select-none" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={()=>handleTouchEnd(images.length)}>
                 {hasVideo && <div className="yt-hidden-player"><iframe src={`https://www.youtube.com/embed/${selectedFeed.youtubeId}?autoplay=1&mute=0&loop=1&playlist=${selectedFeed.youtubeId}&start=${selectedFeed.startTime||0}&end=${selectedFeed.endTime||0}&controls=0`} title="YT" frameBorder="0" width="1" height="1"></iframe></div>}
                 {hasImg ? <img src={images[currentImgIdx]} className="w-full h-full object-cover pointer-events-none" alt="modal-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs text-zinc-600 font-mono">AUDIO SESSION</div>}
-                {hasImg && images.length>1 && (
-                  <>
-                    <button onClick={e=>{e.stopPropagation();prevImage(images.length);}} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed z-20"><i className="fa-solid fa-chevron-left text-xs"></i></button>
-                    <button onClick={e=>{e.stopPropagation();nextImage(images.length);}} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed z-20"><i className="fa-solid fa-chevron-right text-xs"></i></button>
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/40 px-2.5 py-1 rounded-full">
-                      {images.map((_,idx)=><span key={idx} onClick={e=>{e.stopPropagation();setCurrentImgIdx(idx);}} className={`w-1.5 h-1.5 rounded-full cursor-pointer transition-all duration-300 ${idx===currentImgIdx?'bg-jazzRed scale-110':'bg-zinc-500/60'}`} />)}
-                    </div>
-                  </>
-                )}
+                {hasImg && images.length>1 && (<>
+                  <button onClick={e=>{e.stopPropagation();prevImage(images.length);}} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed z-20"><i className="fa-solid fa-chevron-left text-xs"></i></button>
+                  <button onClick={e=>{e.stopPropagation();nextImage(images.length);}} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-jazzRed z-20"><i className="fa-solid fa-chevron-right text-xs"></i></button>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/40 px-2.5 py-1 rounded-full">
+                    {images.map((_,idx)=><span key={idx} onClick={e=>{e.stopPropagation();setCurrentImgIdx(idx);}} className={`w-1.5 h-1.5 rounded-full cursor-pointer transition-all duration-300 ${idx===currentImgIdx?'bg-jazzRed scale-110':'bg-zinc-500/60'}`} />)}
+                  </div>
+                </>)}
               </div>
               <div className="flex flex-col justify-between bg-jazzBlack p-4 md:p-6 w-full md:w-1/2 flex-1 min-h-0">
                 <div className="flex flex-col gap-3 flex-1 overflow-y-auto min-h-0">
@@ -887,18 +814,11 @@ function App() {
         );
       })()}
 
-      {/* ── Music Lounge 상세 모달 ─── */}
+      {/* Music Lounge 상세 모달 */}
       {selectedMusic && (
-        <MusicDetailModal
-          item={selectedMusic}
-          user={user}
-          onClose={()=>setSelectedMusic(null)}
-          onRate={handleRate}
-          onReview={handleReview}
-          onEditReview={handleEditReview}
-          onDeleteReview={handleDeleteReview}
-          currentUsername={currentUsername}
-        />
+        <MusicDetailModal item={selectedMusic} user={user} onClose={()=>setSelectedMusic(null)}
+          onRate={handleRate} onReview={handleReview} onEditReview={handleEditReview}
+          onDeleteReview={handleDeleteReview} currentUsername={currentUsername} />
       )}
     </div>
   );
